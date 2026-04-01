@@ -1,5 +1,7 @@
 # CaS — CLI as a Service Reference Architecture
 
+[🇪🇸 Español](./README.md) | [🇬🇧 English](./README.en.md)
+
 > **Arquitectura de referencia ejecutable** para un sistema corporativo de agentes autónomos con control de políticas, aislamiento de ejecución y memoria persistente.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
