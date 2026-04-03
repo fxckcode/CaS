@@ -40,6 +40,8 @@ Project/organization state and decision traces (CHANGELOG/Org Memory, inspired b
 ### Interface Layer
 HTTP/WebSocket chat + Slack/Teams/WhatsApp adapters (initial mocks included).
 
+The design of this layer is grounded in a comparative analysis of modern AI agent CLIs (Claude Code, Opencode, Codex CLI, OpenClaw). See [`docs/research-cli-architecture.md`](./docs/research-cli-architecture.md) for the full study.
+
 ---
 
 ## Repository Structure
@@ -235,6 +237,93 @@ Entity vocabulary: `Goal`, `Plan`, `Tool`, `Job`, `MemoryItem`.
 
 ---
 
+## Interface Layer Design
+
+> Grounded in a comparative analysis of modern AI agent CLIs. See [`docs/research-cli-architecture.md`](./docs/research-cli-architecture.md) for the full study of Claude Code, Opencode, Codex CLI, and OpenClaw.
+
+### Two identified architectural patterns
+
+#### Pattern A: Single-Process Renderer
+*Claude Code (TypeScript/Bun + React/Ink), Codex CLI (Node.js + React/Ink)*
+
+```
+┌─────────────────────────┐
+│  Single process         │
+│  ├── Agent Logic        │
+│  └── UI Renderer (Ink)  │
+└─────────────────────────┘
+```
+
+**Pros:** Simple, no IPC latency, easy to debug.
+**Cons:** No session persistence; new frontend = re-implement renderer.
+
+#### Pattern B: Daemon/Gateway + Thin Clients
+*Opencode (Go + HTTP/SSE), OpenClaw (Node.js + WebSocket)*
+
+```
+┌──────────────────────┐
+│  Daemon/Gateway      │  ← State, sessions, agent, tools
+│  (persistent process) │
+└──────────┬───────────┘
+           │ standard protocol
+    ┌──────┼──────┐
+    ▼      ▼      ▼
+  TUI    Web   Desktop  ← Rendering and UX only
+```
+
+**Pros:** Persistent sessions, native multi-client, extensible. New channel = implement adapter.
+**Cons:** Operational complexity (daemon lifecycle, ports, auth).
+
+**CaS adopts Pattern B**, aligned with its requirements for multiple entry points (terminal, Slack, Teams, WhatsApp, web).
+
+### Interface Layer Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│          CaS Control Plane                  │
+│  (Orchestrator + Planner + Policy Engine)   │
+└─────────────────┬───────────────────────────┘
+                  │ WebSocket / HTTP+SSE
+        ┌─────────┴──────────┐
+        ▼                    ▼
+┌──────────────┐    ┌──────────────────────────┐
+│  API Gateway │    │   Interface Adapters      │
+│  HTTP/WS     │    │   ├── CLI Adapter (WS)   │
+│  :8080       │    │   ├── Slack Adapter       │
+└──────────────┘    │   ├── Teams Adapter       │
+                    │   ├── WhatsApp Adapter     │
+                    │   └── Desktop App (UDS)   │
+                    └──────────────────────────┘
+```
+
+### Protocol decisions per client
+
+| Client | Protocol | Reference |
+|--------|----------|-----------|
+| CLI (TUI) | WebSocket | OpenClaw |
+| Web UI | HTTP + SSE | Opencode |
+| Desktop App | Unix Domain Socket + token auth | OpenClaw macOS |
+| Slack / Teams / WhatsApp | HTTP Adapters | OpenClaw channels |
+
+The **bidirectional and long-lived** nature of AI agent flows makes WebSocket the natural match for the CLI: the backend needs to stream progress in real time and the client needs to send interruptions or new instructions at any moment.
+
+### Minimal viable protocol for the CaS CLI
+
+```
+CLI (TUI) ──WS──► API Gateway ──internal──► Orchestrator
+                      │
+                      ├── /goals    POST   { goal, projectId }
+                      ├── /events   SSE    streaming progress
+                      └── /sessions GET    active session state
+```
+
+### Recommended TUI stack
+
+- **TypeScript**: React + [Ink](https://github.com/vadimdemedes/ink) — same approach as Claude Code and Codex CLI
+- **Go**: Bubble Tea — same approach as Opencode
+
+---
+
 ## Security and Compliance
 
 In `docs/06-security-and-compliance.md`, it details:
@@ -262,12 +351,22 @@ It also connects with **data governance** topics in regulated organizations: sen
 
 ## References
 
+**CaS Architecture**
 - [Codex CLI](https://developers.openai.com/codex/cli/)
 - [Codex Quickstart](https://developers.openai.com/codex/quickstart/)
 - [Long-running agents paper](https://arxiv.org/pdf/2309.06551.pdf)
 - [Claude Memory deep dive](https://skywork.ai/blog/claude-memory-a-deep-dive-into-anthropics-persistent-context-solution/)
 - [Governance in regulated orgs](https://arxiv.org/pdf/2204.08941.pdf)
 - [Integrate Codex CLI into workflows](https://blog.openreplay.com/integrate-openais-codex-cli-tool-development-workflow/)
+
+**Interface Layer Research** — full study at [`docs/research-cli-architecture.md`](./docs/research-cli-architecture.md)
+- [Claude Code Architecture Leak — WaveSpeedAI](https://wavespeed.ai/blog/posts/claude-code-architecture-leaked-source-deep-dive/)
+- [AI Coding Agent Architecture Analysis — Haseeb Qureshi](https://gist.github.com/Haseeb-Qureshi/2213cc0487ea71d62572a645d7582518)
+- [Opencode Docs — Server](https://opencode.ai/docs/server/)
+- [Opencode Docs — TUI](https://opencode.ai/docs/tui/)
+- [Codex CLI Features — OpenAI Developers](https://developers.openai.com/codex/cli/features)
+- [OpenClaw Gateway Architecture](https://openclaws.io/docs/concepts/architecture/)
+- [The Gateway — OpenClaw Docs](https://clawdocs.org/architecture/gateway/)
 
 ---
 
