@@ -40,6 +40,8 @@ Estado de proyectos/organización y trazas de decisiones (CHANGELOG/Org Memory, 
 ### Capa de Interfaces
 Chat HTTP/WebSocket + adaptadores Slack/Teams/WhatsApp (mocks iniciales incluidos).
 
+El diseño de esta capa está fundamentado en el análisis comparativo de CLIs de agentes IA modernos (Claude Code, Opencode, Codex CLI, OpenClaw). Ver [`docs/research-cli-architecture.md`](./docs/research-cli-architecture.md) para el estudio completo.
+
 ---
 
 ## Estructura del Repositorio
@@ -235,6 +237,93 @@ Vocabulario de entidades: `Goal`, `Plan`, `Tool`, `Job`, `MemoryItem`.
 
 ---
 
+## Diseño de la Capa de Interfaces
+
+> Fundamentado en el análisis comparativo de CLIs de agentes IA modernos. Ver [`docs/research-cli-architecture.md`](./docs/research-cli-architecture.md) para el estudio completo de Claude Code, Opencode, Codex CLI y OpenClaw.
+
+### Dos patrones arquitectónicos identificados
+
+#### Patrón A: Single-Process Renderer
+*Claude Code (TypeScript/Bun + React/Ink), Codex CLI (Node.js + React/Ink)*
+
+```
+┌─────────────────────────┐
+│  Proceso único          │
+│  ├── Agent Logic        │
+│  └── UI Renderer (Ink)  │
+└─────────────────────────┘
+```
+
+**Pros:** Simple, sin latencia IPC, fácil de debuggear.
+**Contras:** Sin persistencia de sesión; nuevo frontend = reimplementar renderer.
+
+#### Patrón B: Daemon/Gateway + Thin Clients
+*Opencode (Go + HTTP/SSE), OpenClaw (Node.js + WebSocket)*
+
+```
+┌──────────────────────┐
+│  Daemon/Gateway      │  ← Estado, sesiones, agente, tools
+│  (proceso persistente)│
+└──────────┬───────────┘
+           │ protocolo estándar
+    ┌──────┼──────┐
+    ▼      ▼      ▼
+  TUI    Web   Desktop  ← Solo rendering y UX
+```
+
+**Pros:** Sesiones persistentes, multi-cliente nativo, extensible. Añadir canal = implementar adapter.
+**Contras:** Complejidad operacional (lifecycle del daemon, puertos, auth).
+
+**CaS adopta el Patrón B**, alineado con sus requerimientos de múltiples puntos de entrada (terminal, Slack, Teams, WhatsApp, web).
+
+### Arquitectura de la Capa de Interfaces
+
+```
+┌─────────────────────────────────────────────┐
+│          CaS Control Plane                  │
+│  (Orchestrator + Planner + Policy Engine)   │
+└─────────────────┬───────────────────────────┘
+                  │ WebSocket / HTTP+SSE
+        ┌─────────┴──────────┐
+        ▼                    ▼
+┌──────────────┐    ┌──────────────────────────┐
+│  API Gateway │    │   Interface Adapters      │
+│  HTTP/WS     │    │   ├── CLI Adapter (WS)   │
+│  :8080       │    │   ├── Slack Adapter       │
+└──────────────┘    │   ├── Teams Adapter       │
+                    │   ├── WhatsApp Adapter     │
+                    │   └── Desktop App (UDS)   │
+                    └──────────────────────────┘
+```
+
+### Decisiones de protocolo por cliente
+
+| Cliente | Protocolo | Referente |
+|---------|-----------|-----------|
+| CLI (TUI) | WebSocket | OpenClaw |
+| Web UI | HTTP + SSE | Opencode |
+| Desktop App | Unix Domain Socket + token auth | OpenClaw macOS |
+| Slack / Teams / WhatsApp | Adapters HTTP | OpenClaw channels |
+
+La naturaleza **full-duplex y long-lived** de los flujos de agentes IA hace que WebSocket sea el match natural para el CLI: el backend necesita enviar progreso en tiempo real y el cliente necesita enviar interrupciones o nuevas instrucciones en cualquier momento.
+
+### Protocolo mínimo viable para el CLI de CaS
+
+```
+CLI (TUI) ──WS──► API Gateway ──internal──► Orchestrator
+                      │
+                      ├── /goals    POST   { goal, projectId }
+                      ├── /events   SSE    streaming de progreso
+                      └── /sessions GET    estado de sesión activa
+```
+
+### Stack TUI recomendado
+
+- **TypeScript**: React + [Ink](https://github.com/vadimdemedes/ink) — mismo approach que Claude Code y Codex CLI
+- **Go**: Bubble Tea — mismo approach que Opencode
+
+---
+
 ## Seguridad y Compliance
 
 En `docs/06-security-and-compliance.md` se detalla:
@@ -262,12 +351,22 @@ También conecta con temas de **gobierno de datos** en organizaciones reguladas:
 
 ## Referencias
 
+**Arquitectura de CaS**
 - [Codex CLI](https://developers.openai.com/codex/cli/)
 - [Codex Quickstart](https://developers.openai.com/codex/quickstart/)
 - [Long-running agents paper](https://arxiv.org/pdf/2309.06551.pdf)
 - [Claude Memory deep dive](https://skywork.ai/blog/claude-memory-a-deep-dive-into-anthropics-persistent-context-solution/)
 - [Governance in regulated orgs](https://arxiv.org/pdf/2204.08941.pdf)
 - [Integrate Codex CLI into workflows](https://blog.openreplay.com/integrate-openais-codex-cli-tool-development-workflow/)
+
+**Investigación de la Capa de Interfaces** — ver estudio completo en [`docs/research-cli-architecture.md`](./docs/research-cli-architecture.md)
+- [Claude Code Architecture Leak — WaveSpeedAI](https://wavespeed.ai/blog/posts/claude-code-architecture-leaked-source-deep-dive/)
+- [AI Coding Agent Architecture Analysis — Haseeb Qureshi](https://gist.github.com/Haseeb-Qureshi/2213cc0487ea71d62572a645d7582518)
+- [Opencode Docs — Server](https://opencode.ai/docs/server/)
+- [Opencode Docs — TUI](https://opencode.ai/docs/tui/)
+- [Codex CLI Features — OpenAI Developers](https://developers.openai.com/codex/cli/features)
+- [OpenClaw Gateway Architecture](https://openclaws.io/docs/concepts/architecture/)
+- [The Gateway — OpenClaw Docs](https://clawdocs.org/architecture/gateway/)
 
 ---
 
