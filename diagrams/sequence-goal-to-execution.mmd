@@ -1,0 +1,30 @@
+sequenceDiagram
+    actor User
+    participant GW as API Gateway
+    participant ORCH as Orchestrator
+    participant PLAN as Planner
+    participant PE as Policy Engine
+    participant TR as Tools Registry
+    participant MQ as Message Queue
+    participant RUN as Runner
+    participant MEM as Memory Store
+
+    User->>GW: POST /goals { goal: "migrate monolith" }
+    GW->>ORCH: Create Goal (PENDING)
+    ORCH->>PLAN: Request Plan
+    PLAN->>PE: Validate Autonomy Mode
+    PE-->>PLAN: ALLOW (semi-autonomous)
+    PLAN->>TR: List Available Tools
+    TR-->>PLAN: [kubectl_apply, db_migrate, ...]
+    PLAN->>PLAN: Build DAG of Tasks
+    PLAN-->>ORCH: Plan (steps: 5, dependencies: [...])
+    ORCH->>ORCH: Approve Plan
+    ORCH->>MQ: Publish Jobs
+    MQ->>RUN: Consume Job
+    RUN->>RUN: Execute in Container
+    RUN-->>MQ: Stream Progress
+    MQ-->>ORCH: Job Completed
+    ORCH->>MEM: Write MemoryItem
+    MEM-->>MEM: Store with Embedding
+    ORCH-->>GW: Goal COMPLETED
+    GW-->>User: Result + Summary

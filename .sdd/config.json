@@ -1,0 +1,15 @@
+{
+  "project": "CaS — CLI as a Service Reference Architecture",
+  "sdd_version": "1.0.0",
+  "artifact_store": "files-only",
+  "chain_strategy": "single-pr",
+  "detected_stack": {
+    "language": null,
+    "package_manager": null,
+    "test_framework": null,
+    "type": "documentation-reference-architecture"
+  },
+  "created_at": "2026-05-31",
+  "has_code": false,
+  "init_done": true
+}

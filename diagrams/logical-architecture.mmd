@@ -1,0 +1,49 @@
+graph TB
+    subgraph Interface["Interface Layer"]
+        CLI["CLI TUI<br/>(React/Ink)"]
+        WEB["Web UI<br/>(Next.js)"]
+        SLACK["Slack Adapter"]
+        TEAMS["Teams Adapter"]
+        GW["API Gateway<br/>HTTP/WS :8080"]
+    end
+
+    subgraph Control["Control Plane"]
+        ORCH["Orchestrator<br/>Goal State Machine"]
+        PLAN["Planner<br/>LLM Prompt Builder"]
+        PE["Policy Engine<br/>OPA/Rego"]
+        TR["Tools Registry<br/>tool.yaml Descriptors"]
+    end
+
+    subgraph Execution["Execution Plane"]
+        MQ["Message Queue<br/>BullMQ / RabbitMQ"]
+        SR["Shell Runner<br/>Docker Containers"]
+        CR["CI/CD Runner<br/>GitHub Actions / GitLab"]
+        DR["Data Runner<br/>Python + Pandas"]
+    end
+
+    subgraph Memory["Memory Layer"]
+        OS["Org Store<br/>Organizational Memory"]
+        PS["Project Store<br/>Per-Project Decisions"]
+        VS["Vector Store<br/>pgvector Embeddings"]
+    end
+
+    CLI --> GW
+    WEB --> GW
+    SLACK --> GW
+    TEAMS --> GW
+    GW --> ORCH
+    ORCH --> PLAN
+    PLAN --> PE
+    PE --> TR
+    ORCH --> MQ
+    MQ --> SR
+    MQ --> CR
+    MQ --> DR
+    SR --> OS
+    CR --> OS
+    DR --> OS
+    ORCH --> OS
+    PLAN --> OS
+    OS --> PS
+    PS --> VS
+    PLAN --> VS
