@@ -1,75 +1,47 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
-
-interface JobEvent {
-  goalId: string;
-  job: {
-    id: string;
-    planId: string;
-    stepId: string;
-    toolId: string;
-    parameters: Record<string, unknown>;
-    runnerType: string;
-    status: string;
-    createdAt: Date;
-    updatedAt: Date;
-  };
-}
+import { OnEvent } from '@nestjs/event-emitter';
+import { Job } from '../shared/types';
+import { RunnerOrchestratorService } from '../runners/runner-orchestrator.service';
 
 @Injectable()
 export class OrchestratorProcessor {
   private readonly logger = new Logger(OrchestratorProcessor.name);
-  private readonly retryCounts = new Map<string, number>();
-  private readonly maxRetries = 3;
 
-  constructor(private readonly eventEmitter: EventEmitter2) {}
+  constructor(
+    private readonly runnerOrchestrator: RunnerOrchestratorService,
+  ) {}
 
   @OnEvent('job.published')
-  async handleJobPublished(payload: JobEvent): Promise<void> {
-    const { job } = payload;
-    this.logger.log(`Processing job ${job.id} for tool ${job.toolId}`);
+  async handleJobPublished(payload: { goalId: string; job: Record<string, unknown> }): Promise<void> {
+    const jobData = payload.job;
 
-    // Simulate execution with a short timeout
+    // Reconstruct a Job instance from the event payload
+    const job = new Job(
+      jobData['id'] as string,
+      jobData['planId'] as string,
+      jobData['stepId'] as string,
+      jobData['toolId'] as string,
+      jobData['parameters'] as Record<string, unknown>,
+      jobData['runnerType'] as 'shell' | 'cicd' | 'data',
+      'pending',
+      jobData['createdAt'] as Date,
+      jobData['updatedAt'] as Date,
+    );
+
+    this.logger.log(
+      `Received job ${job.id} (${job.runnerType}) for tool ${job.toolId}`,
+    );
+
     try {
-      await new Promise<void>((resolve, reject) => {
-        setTimeout(() => {
-          // Simulate 90% success rate
-          if (Math.random() < 0.9) {
-            resolve();
-          } else {
-            reject(new Error(`Simulated execution failure for job ${job.id}`));
-          }
-        }, 50);
-      });
-
-      this.logger.log(`Job ${job.id} completed successfully`);
-      this.eventEmitter.emit('job.completed', {
-        jobId: job.id,
-        result: { output: `Job ${job.id} executed successfully` },
-      });
+      await this.runnerOrchestrator.executeJob(job);
+      this.logger.log(`Job ${job.id} processed by runner orchestrator`);
     } catch (err: unknown) {
+      // RunnerOrchestratorService already emits job.failed on errors,
+      // but if executeJob itself throws unexpectedly, catch it here.
       const errorMessage = err instanceof Error ? err.message : String(err);
-      const retries = this.retryCounts.get(job.id) ?? 0;
-
-      if (retries < this.maxRetries) {
-        this.retryCounts.set(job.id, retries + 1);
-        this.logger.warn(
-          `Job ${job.id} failed (attempt ${retries + 1}/${this.maxRetries}), retrying...`,
-        );
-        // Re-publish with slight delay
-        setTimeout(() => {
-          this.eventEmitter.emit('job.published', payload);
-        }, 100);
-      } else {
-        this.logger.error(
-          `Job ${job.id} failed after ${this.maxRetries} retries: ${errorMessage}`,
-        );
-        this.eventEmitter.emit('job.failed', {
-          jobId: job.id,
-          error: errorMessage,
-        });
-        this.retryCounts.delete(job.id);
-      }
+      this.logger.error(
+        `Unexpected error processing job ${job.id}: ${errorMessage}`,
+      );
     }
   }
 }
