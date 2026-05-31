@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Param,
+  Query,
   Body,
   NotFoundException,
   ValidationPipe,
@@ -26,6 +27,11 @@ export class ApiGatewayController {
     return this.apiGatewayService.submitGoal(dto);
   }
 
+  @Get('goals')
+  async listGoals(): Promise<GoalResponseDto[]> {
+    return this.apiGatewayService.listGoals();
+  }
+
   @Get('goals/:id')
   async getGoal(@Param('id') id: string): Promise<GoalResponseDto> {
     const result = this.apiGatewayService.getGoalStatus(id);
@@ -35,10 +41,36 @@ export class ApiGatewayController {
     return result;
   }
 
+  @Get('goals/:id/plan')
+  async getGoalPlan(@Param('id') id: string) {
+    const plan = this.apiGatewayService.getPlanForGoal(id);
+    if (!plan) {
+      throw new NotFoundException(`No plan found for goal ${id}`);
+    }
+    return plan;
+  }
+
   @Get('tools')
   async listTools(): Promise<ToolListResponseDto> {
     const tools = this.toolsRegistry.getTools();
     return { tools, total: tools.length };
+  }
+
+  @Get('memory')
+  async listMemory(
+    @Query('projectId') projectId?: string,
+    @Query('type') type?: string,
+    @Query('keywords') keywords?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.apiGatewayService.searchMemory({
+      projectId,
+      type,
+      keywords,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      offset: offset ? parseInt(offset, 10) : undefined,
+    });
   }
 
   @Get('health')

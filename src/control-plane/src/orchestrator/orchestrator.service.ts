@@ -10,6 +10,7 @@ import {
   PolicyDecision,
 } from '../shared/types';
 import { GoalStore } from './goal.store';
+import { PlanStore } from './plan.store';
 import { PlannerService } from '../planner/planner.service';
 import { PolicyEngineService } from '../policy-engine/policy-engine.service';
 import { ToolsRegistryService } from '../tools-registry/tools-registry.service';
@@ -20,6 +21,7 @@ export class OrchestratorService {
 
   constructor(
     private readonly goalStore: GoalStore,
+    private readonly planStore: PlanStore,
     private readonly planner: PlannerService,
     private readonly policyEngine: PolicyEngineService,
     private readonly toolsRegistry: ToolsRegistryService,
@@ -74,6 +76,9 @@ export class OrchestratorService {
 
     // Create plan
     const plan = await this.planner.createPlan(goal, tools);
+
+    // Store plan for dashboard / API access
+    this.planStore.set(plan);
 
     // Evaluate policies for each step
     let requiresApproval = false;

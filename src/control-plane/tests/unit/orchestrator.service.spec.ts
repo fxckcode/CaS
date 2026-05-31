@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { OrchestratorService } from '../../src/orchestrator/orchestrator.service';
 import { GoalStore } from '../../src/orchestrator/goal.store';
+import { PlanStore } from '../../src/orchestrator/plan.store';
 import { PlannerService } from '../../src/planner/planner.service';
 import { PolicyEngineService } from '../../src/policy-engine/policy-engine.service';
 import { ToolsRegistryService } from '../../src/tools-registry/tools-registry.service';
@@ -52,6 +53,7 @@ describe('OrchestratorService', () => {
       providers: [
         OrchestratorService,
         GoalStore,
+        PlanStore,
         {
           provide: PlannerService,
           useValue: {

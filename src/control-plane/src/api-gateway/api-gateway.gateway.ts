@@ -6,7 +6,8 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger } from '@nestjs/common';
+import { Logger, Inject } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { OrchestratorService } from '../orchestrator/orchestrator.service';
 
 @WebSocketGateway({ namespace: '/ws', cors: true })
@@ -16,7 +17,21 @@ export class ApiGatewayGateway implements OnGatewayConnection, OnGatewayDisconne
   @WebSocketServer()
   server!: Server;
 
-  constructor(private readonly orchestrator: OrchestratorService) {}
+  constructor(
+    private readonly orchestrator: OrchestratorService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {
+    // Forward goal lifecycle events to all connected WS clients
+    const forwardEvent = (eventName: string) => (payload: Record<string, unknown>) => {
+      this.server?.emit(eventName, payload);
+    };
+
+    this.eventEmitter.on('goal.created', forwardEvent('goal:created'));
+    this.eventEmitter.on('goal.planned', forwardEvent('goal:planned'));
+    this.eventEmitter.on('goal.completed', forwardEvent('goal:completed'));
+    this.eventEmitter.on('goal.failed', forwardEvent('goal:failed'));
+    this.eventEmitter.on('goal.approval_required', forwardEvent('goal:approval_required'));
+  }
 
   handleConnection(client: Socket): void {
     this.logger.log(`Client connected: ${client.id}`);

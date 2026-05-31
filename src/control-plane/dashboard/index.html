@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CaS Dashboard</title>
+<script src="https://cdn.socket.io/4.8.1/socket.io.min.js" integrity="sha384-8K98lF5J6N2+toB4T2JGv3Z8AMbtM8sDqPkBjLfG7VLBK1s4wqEl2MQl0sG6H6a" crossorigin="anonymous"></script>
+<style>
+:root {
+  --bg-primary: #0f1117;
+  --bg-secondary: #1a1d27;
+  --bg-card: #222639;
+  --bg-hover: #2a2f45;
+  --border: #2e3348;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent: #60a5fa;
+  --accent-hover: #3b82f6;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --info: #22d3ee;
+  --radius: 8px;
+  --shadow: 0 2px 8px rgba(0,0,0,.3);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  min-height: 100vh;
+}
+header {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+header h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+header h1 span { color: var(--accent); }
+.health-badge {
+  font-size: .75rem;
+  padding: 4px 12px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.health-badge.ok { background: rgba(74,222,128,.15); color: var(--success); }
+.health-badge.err { background: rgba(248,113,113,.15); color: var(--danger); }
+.health-dot { width: 8px; height: 8px; border-radius: 50%; display:inline-block; }
+.health-dot.ok { background: var(--success); }
+.health-dot.err { background: var(--danger); }
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 20px;
+  padding: 20px 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.card-header {
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: .9rem;
+}
+.card-body { padding: 0; }
+.card-body.padded { padding: 18px; }
+
+/* Goals */
+.goal-item {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background .15s;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.goal-item:last-child { border-bottom: none; }
+.goal-item:hover { background: var(--bg-hover); }
+.goal-status-icon { font-size: 1rem; width: 24px; text-align: center; }
+.goal-info { flex:1; min-width:0; }
+.goal-desc {
+  font-size: .9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.goal-meta {
+  font-size: .75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.status-badge {
+  font-size: .7rem;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.status-PENDING { background: rgba(148,163,184,.15); color: var(--text-secondary); }
+.status-PLANNING { background: rgba(34,211,238,.15); color: var(--info); }
+.status-AWAITING_APPROVAL { background: rgba(251,191,36,.15); color: var(--warning); }
+.status-APPROVED { background: rgba(96,165,250,.15); color: var(--accent); }
+.status-IN_PROGRESS { background: rgba(34,211,238,.15); color: var(--info); }
+.status-COMPLETED { background: rgba(74,222,128,.15); color: var(--success); }
+.status-FAILED { background: rgba(248,113,113,.15); color: var(--danger); }
+.status-CANCELLED { background: rgba(148,163,184,.15); color: var(--text-muted); }
+
+.empty-state {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: .85rem;
+}
+
+/* Tools */
+.tool-item {
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  font-size: .85rem;
+}
+.tool-item:last-child { border-bottom: none; }
+.tool-item .tool-name { font-family: 'SF Mono', 'Fira Code', monospace; }
+.tool-item .tool-domain {
+  font-size: .7rem;
+  color: var(--text-muted);
+  margin-left: 8px;
+}
+.tool-check { color: var(--success); }
+
+/* Memory */
+.memory-search {
+  width: 100%;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: .85rem;
+  outline: none;
+  transition: border .15s;
+}
+.memory-search:focus { border-color: var(--accent); }
+.memory-item {
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+  font-size: .82rem;
+}
+.memory-item:last-child { border-bottom: none; }
+.memory-item .mem-summary { font-weight: 500; }
+.memory-item .mem-meta {
+  font-size: .7rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.memory-type-badge {
+  display: inline-block;
+  font-size: .65rem;
+  padding: 1px 8px;
+  border-radius: 10px;
+  margin-right: 6px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.memory-type-badge.decision { background: rgba(96,165,250,.15); color: var(--accent); }
+.memory-type-badge.artifact { background: rgba(251,191,36,.15); color: var(--warning); }
+.memory-type-badge.convention { background: rgba(74,222,128,.15); color: var(--success); }
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: .85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .15s;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-sm { padding: 4px 12px; font-size: .78rem; }
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+}
+.modal-overlay.active { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 540px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+.modal-header {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px;
+}
+.modal-close:hover { color: var(--text-primary); }
+.modal-body { padding: 22px; }
+.modal-footer {
+  padding: 14px 22px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Form */
+.form-group { margin-bottom: 16px; }
+.form-group label {
+  display: block;
+  font-size: .8rem;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+}
+.form-input, .form-select {
+  width: 100%;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: .9rem;
+  outline: none;
+}
+.form-input:focus, .form-select:focus { border-color: var(--accent); }
+.form-select { cursor: pointer; }
+textarea.form-input { resize: vertical; min-height: 80px; font-family: inherit; }
+
+/* Goal detail modal */
+.detail-section { margin-bottom: 18px; }
+.detail-section h3 {
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.detail-table { width: 100%; font-size: .85rem; }
+.detail-table td {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.detail-table td:first-child { color: var(--text-muted); width: 100px; }
+.step-item {
+  padding: 10px 14px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  font-size: .82rem;
+}
+.step-item:last-child { margin-bottom: 0; }
+.step-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.step-tool { font-family: 'SF Mono', monospace; font-size: .78rem; color: var(--accent); }
+.step-deps { font-size: .72rem; color: var(--text-muted); margin-top: 4px; }
+
+/* Notifications */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 20px;
+  font-size: .85rem;
+  box-shadow: var(--shadow);
+  z-index: 2000;
+  animation: slideIn .3s ease;
+  max-width: 350px;
+}
+.toast.success { border-left: 3px solid var(--success); }
+.toast.error { border-left: 3px solid var(--danger); }
+.toast.info { border-left: 3px solid var(--info); }
+@keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* Loading */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--text-muted);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.empty-subtle { color: var(--text-muted); font-size: .8rem; padding: 16px 18px; text-align: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span>◈</span> CaS Dashboard</h1>
+  <div class="health-badge ok" id="healthBadge">
+    <span class="health-dot ok" id="healthDot"></span>
+    <span id="healthText">Connected</span>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- Left: Goals -->
+  <div class="card">
+    <div class="card-header">
+      <span>🎯 Goals</span>
+      <button class="btn btn-primary btn-sm" onclick="showNewGoalModal()">+ New Goal</button>
+    </div>
+    <div class="card-body" id="goalsList">
+      <div class="empty-state" id="goalsEmpty">
+        <div style="font-size:2rem;margin-bottom:8px;">🎯</div>
+        <div>No goals yet</div>
+        <div style="margin-top:4px;font-size:.78rem;">Create one to get started</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right column -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+    <!-- Tools -->
+    <div class="card">
+      <div class="card-header">🔧 Tools</div>
+      <div class="card-body" id="toolsList">
+        <div class="empty-subtle">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Memory -->
+    <div class="card">
+      <div class="card-header">🧠 Memory</div>
+      <div class="card-body padded">
+        <input class="memory-search" id="memorySearch" placeholder="Search memory..." oninput="searchMemory(this.value)">
+      </div>
+      <div class="card-body" id="memoryList">
+        <div class="empty-subtle">Type to search memory</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- New Goal Modal -->
+<div class="modal-overlay" id="newGoalModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span>🎯 New Goal</span>
+      <button class="modal-close" onclick="closeModal('newGoalModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Description</label>
+        <textarea class="form-input" id="goalDescription" placeholder="e.g. Deploy API v2 to staging"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Project ID</label>
+        <input class="form-input" id="goalProject" value="default" placeholder="project-id">
+      </div>
+      <div class="form-group">
+        <label>Autonomy Mode</label>
+        <select class="form-select" id="goalMode">
+          <option value="semi-autonomous">Semi-Autonomous</option>
+          <option value="autonomous">Autonomous</option>
+          <option value="consultative">Consultative</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:var(--bg-primary);color:var(--text-secondary)" onclick="closeModal('newGoalModal')">Cancel</button>
+      <button class="btn btn-primary" id="createGoalBtn" onclick="createGoal()">Create Goal</button>
+    </div>
+  </div>
+</div>
+
+<!-- Goal Detail Modal -->
+<div class="modal-overlay" id="goalDetailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span>📋 Goal Detail</span>
+      <button class="modal-close" onclick="closeModal('goalDetailModal')">✕</button>
+    </div>
+    <div class="modal-body" id="goalDetailContent">
+      <div class="empty-subtle">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+const WS = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws`;
+let socket = null;
+let goals = [];
+let tools = [];
+let memoryItems = [];
+let currentGoalId = null;
+
+// ── Init ──────────────────────────────────────────────
+async function init() {
+  await Promise.all([fetchGoals(), fetchTools()]);
+  connectWebSocket();
+  checkHealth();
+  setInterval(checkHealth, 15_000);
+}
+
+// ── API ───────────────────────────────────────────────
+async function fetchGoals() {
+  try {
+    const res = await fetch(`${API}/goals`);
+    goals = await res.json();
+    renderGoals();
+  } catch (e) {
+    showToast('Failed to load goals', 'error');
+  }
+}
+
+async function fetchTools() {
+  try {
+    const res = await fetch(`${API}/tools`);
+    const data = await res.json();
+    tools = data.tools || [];
+    renderTools();
+  } catch (e) {
+    document.getElementById('toolsList').innerHTML = '<div class="empty-subtle">Failed to load tools</div>';
+  }
+}
+
+async function fetchMemory(query = '') {
+  try {
+    let url = `${API}/memory?limit=20`;
+    if (query) url += `&keywords=${encodeURIComponent(query)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    memoryItems = data.items || [];
+    renderMemory();
+  } catch (e) {
+    document.getElementById('memoryList').innerHTML = '<div class="empty-subtle">Failed to load memory</div>';
+  }
+}
+
+async function fetchGoalPlan(goalId) {
+  try {
+    const res = await fetch(`${API}/goals/${goalId}/plan`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+async function checkHealth() {
+  try {
+    const res = await fetch(`${API}/health`);
+    const ok = res.ok;
+    const badge = document.getElementById('healthBadge');
+    const dot = document.getElementById('healthDot');
+    const text = document.getElementById('healthText');
+    badge.className = 'health-badge ' + (ok ? 'ok' : 'err');
+    dot.className = 'health-dot ' + (ok ? 'ok' : 'err');
+    text.textContent = ok ? 'Connected' : 'Disconnected';
+  } catch {
+    const badge = document.getElementById('healthBadge');
+    const dot = document.getElementById('healthDot');
+    badge.className = 'health-badge err';
+    dot.className = 'health-dot err';
+    document.getElementById('healthText').textContent = 'Disconnected';
+  }
+}
+
+// ── WebSocket ─────────────────────────────────────────
+function connectWebSocket() {
+  try {
+    socket = io(WS, { transports: ['websocket', 'polling'] });
+    socket.on('connect', () => console.log('WS connected'));
+
+    const events = ['goal:created', 'goal:planned', 'goal:completed', 'goal:failed', 'goal:approval_required'];
+    events.forEach(ev => {
+      socket.on(ev, (payload) => {
+        refreshOnEvent(ev, payload);
+      });
+    });
+    socket.on('goal:error', (payload) => showToast(`Error: ${payload.error}`, 'error'));
+  } catch (e) {
+    console.warn('WebSocket unavailable, polling instead');
+  }
+}
+
+async function refreshOnEvent(event, payload) {
+  if (['goal:created', 'goal:planned', 'goal:completed', 'goal:failed', 'goal:approval_required'].includes(event)) {
+    await fetchGoals();
+    showToast(`Goal ${event.replace('goal:', '')}`, event.includes('failed') ? 'error' : 'success');
+  }
+}
+
+// ── Render ────────────────────────────────────────────
+function renderGoals() {
+  const container = document.getElementById('goalsList');
+  if (!goals.length) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div style="font-size:2rem;margin-bottom:8px;">🎯</div>
+        <div>No goals yet</div>
+        <div style="margin-top:4px;font-size:.78rem;">Create one to get started</div>
+      </div>`;
+    return;
+  }
+  const sorted = [...goals].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+  container.innerHTML = sorted.map(g => {
+    const icon = statusIcon(g.status);
+    const time = timeAgo(g.createdAt);
+    return `<div class="goal-item" onclick="showGoalDetail('${g.id}')">
+      <div class="goal-status-icon">${icon}</div>
+      <div class="goal-info">
+        <div class="goal-desc">${esc(g.description)}</div>
+        <div class="goal-meta">${g.id.slice(0,8)} · ${time}</div>
+      </div>
+      <span class="status-badge status-${g.status}">${g.status.replace(/_/g, ' ')}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderTools() {
+  const container = document.getElementById('toolsList');
+  if (!tools.length) {
+    container.innerHTML = '<div class="empty-subtle">No tools registered</div>';
+    return;
+  }
+  container.innerHTML = tools.map(t => `
+    <div class="tool-item">
+      <div>
+        <span class="tool-name">${esc(t.name)}</span>
+        <span class="tool-domain">${esc(t.domain)}</span>
+      </div>
+      <span class="tool-check">✓</span>
+    </div>
+  `).join('');
+}
+
+function renderMemory() {
+  const container = document.getElementById('memoryList');
+  if (!memoryItems.length) {
+    container.innerHTML = '<div class="empty-subtle">No memory items found</div>';
+    return;
+  }
+  container.innerHTML = memoryItems.map(m => `
+    <div class="memory-item">
+      <div>
+        <span class="memory-type-badge ${m.type}">${m.type}</span>
+        <span class="mem-summary">${esc(m.summary)}</span>
+      </div>
+      <div class="mem-meta">${esc(m.source)} · ${timeAgo(m.createdAt)}</div>
+    </div>
+  `).join('');
+}
+
+// ── Actions ───────────────────────────────────────────
+function showNewGoalModal() {
+  document.getElementById('goalDescription').value = '';
+  document.getElementById('goalProject').value = 'default';
+  document.getElementById('goalMode').value = 'semi-autonomous';
+  document.getElementById('newGoalModal').classList.add('active');
+  document.getElementById('goalDescription').focus();
+}
+
+async function createGoal() {
+  const desc = document.getElementById('goalDescription').value.trim();
+  const project = document.getElementById('goalProject').value.trim();
+  const mode = document.getElementById('goalMode').value;
+  if (!desc) { showToast('Enter a goal description', 'error'); return; }
+
+  const btn = document.getElementById('createGoalBtn');
+  btn.disabled = true; btn.textContent = 'Creating...';
+
+  try {
+    const res = await fetch(`${API}/goals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ goal: desc, projectId: project, autonomyMode: mode }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const goal = await res.json();
+    closeModal('newGoalModal');
+    await fetchGoals();
+    showToast(`Goal created: ${goal.id.slice(0,8)}`, 'success');
+  } catch (e) {
+    showToast(`Failed: ${e.message}`, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create Goal';
+  }
+}
+
+async function showGoalDetail(goalId) {
+  const content = document.getElementById('goalDetailContent');
+  content.innerHTML = '<div class="empty-subtle"><span class="spinner"></span> Loading...</div>';
+  document.getElementById('goalDetailModal').classList.add('active');
+
+  const goal = goals.find(g => g.id === goalId);
+  if (!goal) { content.innerHTML = '<div class="empty-subtle">Goal not found</div>'; return; }
+
+  const plan = await fetchGoalPlan(goalId);
+
+  let html = `
+    <div class="detail-section">
+      <h3>Overview</h3>
+      <table class="detail-table">
+        <tr><td>ID</td><td style="font-family:monospace;font-size:.78rem;">${goal.id}</td></tr>
+        <tr><td>Description</td><td>${esc(goal.description)}</td></tr>
+        <tr><td>Status</td><td><span class="status-badge status-${goal.status}">${goal.status.replace(/_/g, ' ')}</span></td></tr>
+        <tr><td>Created</td><td>${new Date(goal.createdAt).toLocaleString()}</td></tr>
+        <tr><td>Updated</td><td>${new Date(goal.updatedAt).toLocaleString()}</td></tr>
+      </table>
+    </div>`;
+
+  if (plan && plan.steps && plan.steps.length) {
+    html += `
+      <div class="detail-section">
+        <h3>Plan (${plan.steps.length} steps)</h3>
+        <div style="margin-bottom:8px;font-size:.8rem;color:var(--text-muted);">${esc(plan.reasoning || '')}</div>`;
+    plan.steps.forEach((s, i) => {
+      html += `
+        <div class="step-item">
+          <div class="step-header">
+            <span><strong>${i+1}.</strong> ${esc(s.description)}</span>
+            <span class="step-tool">${esc(s.toolId)}</span>
+          </div>
+          <div class="step-deps">
+            Status: ${s.status}
+            ${s.dependencies && s.dependencies.length ? ` · Depends on: ${s.dependencies.join(', ')}` : ''}
+          </div>
+        </div>`;
+    });
+    html += `</div>`;
+  } else {
+    html += `<div class="detail-section"><h3>Plan</h3><div class="empty-subtle">No plan available yet</div></div>`;
+  }
+
+  content.innerHTML = html;
+}
+
+function searchMemory(query) {
+  fetchMemory(query);
+}
+
+// ── UI ────────────────────────────────────────────────
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+function statusIcon(status) {
+  switch(status) {
+    case 'COMPLETED': return '✅';
+    case 'FAILED': return '❌';
+    case 'CANCELLED': return '🚫';
+    case 'PLANNING':
+    case 'IN_PROGRESS': return '🔄';
+    case 'AWAITING_APPROVAL': return '⏳';
+    case 'APPROVED': return '👍';
+    default: return '📋';
+  }
+}
+
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+
+function timeAgo(dateStr) {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const sec = Math.floor((now - then) / 1000);
+  if (sec < 5) return 'just now';
+  if (sec < 60) return sec + 's ago';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return min + 'm ago';
+  const hrs = Math.floor(min / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  const days = Math.floor(hrs / 24);
+  return days + 'd ago';
+}
+
+function showToast(msg, type = 'info') {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', (e) => { if (e.target === el) el.classList.remove('active'); });
+});
+
+// Enter key in new goal modal
+document.getElementById('goalDescription').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); createGoal(); }
+});
+
+// ── Start ─────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

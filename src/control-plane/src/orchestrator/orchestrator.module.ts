@@ -6,11 +6,12 @@ import { RunnersModule } from '../runners/runners.module';
 import { MemoryModule } from '../memory/memory.module';
 import { OrchestratorService } from './orchestrator.service';
 import { GoalStore } from './goal.store';
+import { PlanStore } from './plan.store';
 import { OrchestratorProcessor } from './orchestrator.processor';
 
 @Module({
   imports: [PlannerModule, PolicyEngineModule, ToolsRegistryModule, RunnersModule, MemoryModule],
-  providers: [OrchestratorService, GoalStore, OrchestratorProcessor],
-  exports: [OrchestratorService, GoalStore],
+  providers: [OrchestratorService, GoalStore, PlanStore, OrchestratorProcessor],
+  exports: [OrchestratorService, GoalStore, PlanStore],
 })
 export class OrchestratorModule {}
