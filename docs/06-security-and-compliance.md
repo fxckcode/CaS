@@ -1,169 +1,169 @@
-# CaS — Seguridad y Compliance
+# CaS — Security and Compliance
 
 **CLI as a Service Reference Architecture**
 
-- **Licencia:** MIT
-- **Repositorio:** [github.com/fxckcode/CaS](https://github.com/fxckcode/CaS)
-- **Última actualización:** 2026-05-31
+- **License:** MIT
+- **Repository:** [github.com/fxckcode/CaS](https://github.com/fxckcode/CaS)
+- **Last updated:** 2026-05-31
 
 ---
 
-## Principios de Seguridad
+## Security Principles
 
-CaS se construye sobre cuatro principios fundamentales de seguridad que guían cada decisión arquitectónica:
+CaS is built on four fundamental security principles that guide every architectural decision:
 
-### 1. Least Privilege (Mínimo Privilegio)
+### 1. Least Privilege
 
-Cada componente del sistema recibe **únicamente los permisos necesarios** para cumplir su función y nada más.
+Each component of the system receives **only the permissions necessary** to fulfill its function and nothing more.
 
-- **Runners**: Cada job recibe credenciales scoped con TTL igual a la duración del job. Al terminar, las credenciales se revocan automáticamente.
-- **Planes**: Cada step del plan solo puede acceder a las tools y recursos que necesita. Un step de consulta SQL no puede ejecutar deploys.
-- **Usuarios**: Cada usuario tiene roles que limitan qué domains, tools y entornos puede operar.
+- **Runners**: Each job receives scoped credentials with a TTL equal to the job duration. Upon completion, credentials are automatically revoked.
+- **Plans**: Each plan step can only access the tools and resources it needs. A SQL query step cannot execute deploys.
+- **Users**: Each user has roles that limit which domains, tools, and environments they can operate.
 
-### 2. Defense in Depth (Defensa en Profundidad)
+### 2. Defense in Depth
 
-No existe un único punto de fallo de seguridad. Múltiples capas deben ser violadas para que un ataque tenga éxito:
+There is no single point of security failure. Multiple layers must be breached for an attack to succeed:
 
 ```
-Capa 1: Autenticación (OIDC/JWT) ─── Quién eres
-Capa 2: Autorización (Policy Engine) ─── Qué puedes hacer
-Capa 3: Sandboxing (Contenedores) ─── Dónde lo haces
-Capa 4: Network Isolation ─── Con qué te conectas
-Capa 5: Credential Scoping ─── Con qué credenciales
-Capa 6: Audit Trail ─── Qué quedó registrado
-Capa 7: Data Governance ─── Qué datos ves
+Layer 1: Authentication (OIDC/JWT) ─── Who you are
+Layer 2: Authorization (Policy Engine) ─── What you can do
+Layer 3: Sandboxing (Containers) ─── Where you do it
+Layer 4: Network Isolation ─── What you connect to
+Layer 5: Credential Scoping ─── With what credentials
+Layer 6: Audit Trail ─── What was recorded
+Layer 7: Data Governance ─── What data you see
 ```
 
-### 3. Separation of Concerns (Separación de Responsabilidades)
+### 3. Separation of Concerns
 
-El principio más importante de la arquitectura CaS:
+The most important principle of the CaS architecture:
 
-- **Control Plane** nunca ejecuta código. Solo orquesta, planifica y evalúa políticas.
-- **Execution Plane** nunca decide políticas. Solo ejecuta lo que recibe y reporta resultados.
-- **Memory Layer** nunca expone datos sin autorización. Solo responde consultas autenticadas.
-- **Interface Layer** nunca contiene lógica de negocio. Solo presenta y recolecta.
+- **Control Plane** never executes code. It only orchestrates, plans, and evaluates policies.
+- **Execution Plane** never decides policies. It only executes what it receives and reports results.
+- **Memory Layer** never exposes data without authorization. It only responds to authenticated queries.
+- **Interface Layer** never contains business logic. It only presents and collects.
 
-Esto significa que incluso si un runner es comprometido, el atacante no puede modificar políticas, acceder a memoria de otros proyectos, ni ejecutar operaciones no autorizadas.
+This means that even if a runner is compromised, the attacker cannot modify policies, access other projects' memory, or execute unauthorized operations.
 
-### 4. Auditability (Auditabilidad)
+### 4. Auditability
 
-Toda acción en el sistema es registrada con contexto completo:
+Every action in the system is logged with full context:
 
-- Qué se ejecutó (tool + parámetros)
-- Quién lo solicitó (userId + rol)
-- Quién lo aprobó (si aplica)
-- Qué decidió el policy engine
-- Cuándo ocurrió (timestamp)
-- Qué resultado tuvo (éxito/fallo/error)
+- What was executed (tool + parameters)
+- Who requested it (userId + role)
+- Who approved it (if applicable)
+- What the policy engine decided
+- When it occurred (timestamp)
+- What result it had (success/failure/error)
 
-El audit trail es **inmutable, append-only y firmado con hash chain**.
+The audit trail is **immutable, append-only, and signed with a hash chain**.
 
 ---
 
-## Modos de Autonomía
+## Autonomy Modes
 
-CaS ofrece tres modos de autonomía para balancear productividad vs. control. El modo se define por Goal (no global) y puede ser restringido por políticas organizacionales.
+CaS offers three autonomy modes to balance productivity vs. control. The mode is defined per Goal (not globally) and can be restricted by organizational policies.
 
-### Comparación de Modos
+### Mode Comparison
 
-| Aspecto | Consultivo | Semi-autónomo | Autónomo |
+| Aspect | Consultive | Semi-autonomous | Autonomous |
 |---|---|---|---|
-| **Aprobación requerida** | Cada step no-lectura | Steps de alto riesgo | Solo fuera del sandbox |
-| **Velocidad** | Lenta | Media | Rápida |
-| **Control** | Máximo | Balanceado | Mínimo |
-| **Caso de uso** | Producción, finance | DevOps diario | CI/CD, sandbox |
-| **Riesgo** | Bajo | Medio | Alto |
-| **Supervisión humana** | Constante | Selectiva | Mínima |
+| **Approval required** | Each non-read step | High-risk steps | Only outside sandbox |
+| **Speed** | Slow | Medium | Fast |
+| **Control** | Maximum | Balanced | Minimum |
+| **Use case** | Production, finance | Daily DevOps | CI/CD, sandbox |
+| **Risk** | Low | Medium | High |
+| **Human supervision** | Constant | Selective | Minimal |
 
-### Consultivo
+### Consultive
 
-El modo más restrictivo. Diseñado para entornos con cumplimiento normativo estricto (finance, healthcare, government).
-
-```
-Flujo:
-1. Usuario crea Goal → Orchestrator planifica
-2. Cada step del plan es evaluado por Policy Engine
-3. Si el step no es de solo lectura → REQUIRE_APPROVAL
-4. Orchestrator pausa el plan
-5. Usuario recibe notificación: "Step 2/5 requiere aprobación"
-6. Usuario (o approver designado) revisa: tool, parámetros, entorno
-7. Aprueba o deniega
-8. Si aprueba → step ejecutado → loop al paso 2 para el siguiente step
-9. Si deniega → Goal FAILED
-
-Ejemplo:
-Goal: "Ejecutar script de migración en staging"
-  step 1: run_shell("pg_dump staging") → solo lectura → ALLOW automático
-  step 2: db_migrate(up, staging) → escritura → REQUIRE_APPROVAL
-  → Usuario revisa y aprueba
-  step 3: run_shell("verify data") → solo lectura → ALLOW automático
-  step 4: notify("migración completada") → escritura → REQUIRE_APPROVAL
-  → Usuario revisa y aprueba
-```
-
-### Semi-autónomo
-
-El modo por defecto. Balancea productividad con control mediante clasificación de riesgo.
+The most restrictive mode. Designed for environments with strict regulatory compliance (finance, healthcare, government).
 
 ```
-Flujo:
-1. Usuario crea Goal → Orchestrator planifica
-2. Cada step es evaluado con reglas de riesgo:
-   - risk=low (lectura, dev) → ALLOW automático
-   - risk=medium (escritura en dev, lectura en prod) → ALLOW automático
-   - risk=high (escritura en prod, deploy, delete) → REQUIRE_APPROVAL
-3. Steps de bajo/medio riesgo se ejecutan inmediatamente
-4. Steps de alto riesgo pausan el plan y notifican
-5. Usuario aprueba en lote o step por step
-6. Continúa ejecución
+Flow:
+1. User creates Goal → Orchestrator plans
+2. Each plan step is evaluated by Policy Engine
+3. If the step is not read-only → REQUIRE_APPROVAL
+4. Orchestrator pauses the plan
+5. User receives notification: "Step 2/5 requires approval"
+6. User (or designated approver) reviews: tool, parameters, environment
+7. Approves or denies
+8. If approved → step executed → loop to step 2 for next step
+9. If denied → Goal FAILED
 
-Ejemplo:
-Goal: "Deploy versión 2.5 a staging y luego a producción"
+Example:
+Goal: "Execute migration script on staging"
+  step 1: run_shell("pg_dump staging") → read-only → auto ALLOW
+  step 2: db_migrate(up, staging) → write → REQUIRE_APPROVAL
+  → User reviews and approves
+  step 3: run_shell("verify data") → read-only → auto ALLOW
+  step 4: notify("migration completed") → write → REQUIRE_APPROVAL
+  → User reviews and approves
+```
+
+### Semi-autonomous
+
+The default mode. Balances productivity with control through risk classification.
+
+```
+Flow:
+1. User creates Goal → Orchestrator plans
+2. Each step is evaluated with risk rules:
+   - risk=low (read, dev) → auto ALLOW
+   - risk=medium (write in dev, read in prod) → auto ALLOW
+   - risk=high (write in prod, deploy, delete) → REQUIRE_APPROVAL
+3. Low/medium risk steps execute immediately
+4. High risk steps pause the plan and notify
+5. User approves in batch or step by step
+6. Execution continues
+
+Example:
+Goal: "Deploy version 2.5 to staging and then to production"
   step 1: build_image(version 2.5) → risk=medium (staging) → ALLOW
   step 2: helm_deploy(staging, version 2.5) → risk=medium → ALLOW
   step 3: run_tests(staging) → risk=low → ALLOW
-  step 4: helm_deploy(prod, version 2.5) → risk=high (escritura en prod) → REQUIRE_APPROVAL
-  → Usuario notificado: "¿Aprobar deploy a producción?"
-  → Usuario aprueba
+  step 4: helm_deploy(prod, version 2.5) → risk=high (write in prod) → REQUIRE_APPROVAL
+  → User notified: "Approve deploy to production?"
+  → User approves
   step 5: smoke_tests(prod) → risk=low → ALLOW
 ```
 
-### Autónomo
+### Autonomous
 
-Modo sin fricción. Diseñado para entornos aislados (CI/CD, dev sandbox, herramientas internas).
+Frictionless mode. Designed for isolated environments (CI/CD, dev sandbox, internal tools).
 
 ```
-Flujo:
-1. Usuario crea Goal → Orchestrator planifica
-2. Policy Engine evalúa pasos:
-   - Operación dentro del sandbox de la tool → ALLOW
-   - Operación que requiere acceso fuera del sandbox → evalúa normalmente
-3. Todo se ejecuta automáticamente
-4. Únicamente pasos que escapan el sandbox pueden requerir aprobación
+Flow:
+1. User creates Goal → Orchestrator plans
+2. Policy Engine evaluates steps:
+   - Operation within tool sandbox → ALLOW
+   - Operation requiring access outside sandbox → evaluate normally
+3. Everything executes automatically
+4. Only steps escaping the sandbox may require approval
 
-Ejemplo:
-Goal: "Ejecutar tests unitarios y generar reporte de cobertura" (sandbox)
-  → Todos los steps son ALLOW → ejecución automática completa
+Example:
+Goal: "Run unit tests and generate coverage report" (sandbox)
+  → All steps are ALLOW → complete automatic execution
 
-Goal: "Modificar config de producción desde CI/CD" (sandbox + prod)
+Goal: "Modify production config from CI/CD" (sandbox + prod)
   → step 1: shell("run tests") → sandbox → ALLOW
-  → step 2: kubectl_apply(prod, config.yaml) → fuera del sandbox → evalúa política
+  → step 2: kubectl_apply(prod, config.yaml) → outside sandbox → evaluate policy
 ```
 
 ---
 
 ## Policy Engine (OPA/Rego)
 
-El Policy Engine usa **OPA (Open Policy Agent)** con el lenguaje **Rego** para definir y evaluar políticas de seguridad.
+The Policy Engine uses **OPA (Open Policy Agent)** with the **Rego** language to define and evaluate security policies.
 
-### Estructura de Políticas
+### Policy Structure
 
-Las políticas se organizan en paquetes por dominio y tipo:
+Policies are organized into packages by domain and type:
 
 ```
 policies/
 ├── cas/
-│   ├── policies.rego          # Reglas globales
+│   ├── policies.rego          # Global rules
 │   ├── roles/
 │   │   ├── admin.rego
 │   │   ├── dev.rego
@@ -179,10 +179,10 @@ policies/
 │   └── exceptions/
 │       └── emergency.rego     # Break-glass policies
 └── data/
-    └── tools_by_domain.json   # Catálogo de tools por dominio
+    └── tools_by_domain.json   # Tools catalog by domain
 ```
 
-### Reglas Globales (cas/policies.rego)
+### Global Rules (cas/policies.rego)
 
 ```rego
 package cas.policies
@@ -190,26 +190,26 @@ package cas.policies
 import future.keywords.if
 import future.keywords.in
 
-# Denegar por defecto
+# Deny by default
 default allow := false
 default require_approval := false
 default deny := false
 
 # ==========================================
-# Reglas de Denegación Explícita
+# Explicit Denial Rules
 # ==========================================
 
-# Tool no disponible para el dominio
+# Tool not available for the domain
 deny if {
     not data.tools_by_domain[input.domain][input.tool.name]
 }
 
-# Usuario baneado o suspendido
+# Banned or suspended user
 deny if {
     data.suspended_users[input.user]
 }
 
-# Horario restringido para operaciones de escritura en prod
+# Restricted hours for write operations in prod
 deny if {
     input.environment == "prod"
     input.tool.type == "write"
@@ -232,20 +232,20 @@ is_within_business_hours() {
 }
 ```
 
-### Reglas por Rol (cas/roles/admin.rego)
+### Role-based Rules (cas/roles/admin.rego)
 
 ```rego
 package cas.roles.admin
 
 import future.keywords.if
 
-# Admin puede todo en dev y staging
+# Admin can do everything in dev and staging
 allow if {
     input.role == "admin"
     input.environment in ["dev", "staging"]
 }
 
-# Admin necesita aprobación para escritura en prod
+# Admin needs approval for write in prod
 require_approval if {
     input.role == "admin"
     input.environment == "prod"
@@ -253,7 +253,7 @@ require_approval if {
 }
 ```
 
-### Reglas por Dominio (cas/domains/finance.rego)
+### Domain-based Rules (cas/domains/finance.rego)
 
 ```rego
 package cas.domains.finance
@@ -261,20 +261,20 @@ package cas.domains.finance
 import future.keywords.if
 import future.keywords.in
 
-# Analysts solo lectura en finance
+# Analysts read-only in finance
 allow if {
     input.role == "analyst"
     input.domain == "finance"
     input.tool.type == "read"
 }
 
-# Cualquier escritura en finance requiere aprobación
+# Any write in finance requires approval
 require_approval if {
     input.domain == "finance"
     input.tool.type in ["write", "execute"]
 }
 
-# Prohibir exportación de datos de finance a destinos no aprobados
+# Prohibit data export from finance to non-approved destinations
 deny if {
     input.domain == "finance"
     input.tool.name == "send_email"
@@ -284,71 +284,71 @@ deny if {
 
 ### Break-Glass (Emergency Override)
 
-Para situaciones de emergencia (incidente de seguridad, caída de producción), CaS soporta un mecanismo **break-glass** que permite bypass temporal de políticas:
+For emergency situations (security incident, production outage), CaS supports a **break-glass** mechanism that allows temporary policy bypass:
 
 ```rego
 package cas.exceptions.emergency
 
 import future.keywords.if
 
-# Usuarios con rol emergency_responder pueden operar fuera de política
+# Users with emergency_responder role can operate outside policy
 allow if {
     data.emergency_active == true
     input.user in data.emergency_responders
     input.user in data.current_incident_team
 }
 
-# Break-glass requiere justificación + doble aprobación post-hoc
+# Break-glass requires justification + double post-hoc approval
 audit.emergency_override if {
     data.emergency_active == true
     input.user in data.emergency_responders
 }
 ```
 
-**Activación de break-glass:**
+**Break-glass activation:**
 
-1. Usuario con rol `emergency_responder` activa el modo
-2. Se registra en el audit trail con razón y timestamp
-3. Las restricciones se relajan por máximo 60 minutos
-4. Post-incidente, se requiere justificación formal y revisión de seguridad
+1. User with `emergency_responder` role activates the mode
+2. It is registered in the audit trail with reason and timestamp
+3. Restrictions are relaxed for a maximum of 60 minutes
+4. Post-incident, formal justification and security review are required
 
 ---
 
-## Auditoría
+## Auditing
 
-El sistema de auditoría registra **toda acción** ejecutada en CaS de forma inmutable.
+The audit system records **every action** executed in CaS in an immutable manner.
 
-### Tabla AuditEvent
+### AuditEvent Table
 
 ```sql
 CREATE TABLE audit_events (
     event_id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     timestamp       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     
-    -- Quién
+    -- Who
     user_id         TEXT NOT NULL,
     user_role       TEXT,
     session_id      TEXT,
     
-    -- Qué
+    -- What
     goal_id         TEXT,
     plan_id         TEXT,
     job_id          TEXT,
     action          TEXT NOT NULL,      -- "run_sql_query", "kubectl_apply", etc.
-    parameters      JSONB,              -- Parámetros con los que se ejecutó
+    parameters      JSONB,              -- Parameters used for execution
     
-    -- Política
+    -- Policy
     policy_decision TEXT NOT NULL CHECK (
         policy_decision IN ('ALLOW', 'DENY', 'REQUIRE_APPROVAL')
     ),
     policy_reason   TEXT,
-    policy_rules    TEXT[],             -- Reglas Rego que aplicaron
+    policy_rules    TEXT[],             -- Rego rules that applied
     
-    -- Aprobación
-    approver        TEXT,               -- Quién aprobó (NULL si auto)
+    -- Approval
+    approver        TEXT,               -- Who approved (NULL if auto)
     approval_note   TEXT,
     
-    -- Resultado
+    -- Result
     result          TEXT NOT NULL CHECK (
         result IN ('SUCCESS', 'FAILURE', 'TIMEOUT', 'CANCELLED', 'DENIED')
     ),
@@ -359,13 +359,13 @@ CREATE TABLE audit_events (
     previous_hash   TEXT NOT NULL,
     current_hash    TEXT NOT NULL,
     
-    -- Metadatos
+    -- Metadata
     environment     TEXT,
     domain          TEXT,
     metadata        JSONB DEFAULT '{}'
 );
 
--- Índices para consultas de auditoría
+-- Audit query indexes
 CREATE INDEX idx_audit_timestamp ON audit_events(timestamp DESC);
 CREATE INDEX idx_audit_user ON audit_events(user_id);
 CREATE INDEX idx_audit_goal ON audit_events(goal_id);
@@ -375,7 +375,7 @@ CREATE INDEX idx_audit_policy ON audit_events(policy_decision);
 
 ### Hash Chain
 
-Cada evento de auditoría está enlazado criptográficamente al anterior, haciendo imposible la modificación retroactiva:
+Each audit event is cryptographically linked to the previous one, making retroactive modification impossible:
 
 ```
 event_1: previous_hash = "0000..." (genesis)
@@ -388,10 +388,10 @@ event_3: previous_hash = current_hash(event_2)
          current_hash = SHA256(event_3_data + previous_hash)
 ```
 
-**Verificación de integridad:**
+**Integrity verification:**
 
 ```sql
--- Consulta para verificar que la cadena no ha sido alterada
+-- Query to verify the chain has not been altered
 SELECT
     e1.event_id,
     e1.current_hash = sha256(
@@ -405,17 +405,17 @@ ORDER BY e1.timestamp
 LIMIT 1;
 ```
 
-### Consultas de Auditoría
+### Audit Queries
 
 ```sql
--- ¿Qué hizo el usuario jdoe en las últimas 24 horas?
+-- What did user jdoe do in the last 24 hours?
 SELECT timestamp, action, parameters, policy_decision, result
 FROM audit_events
 WHERE user_id = 'jdoe'
     AND timestamp > NOW() - INTERVAL '24 hours'
 ORDER BY timestamp DESC;
 
--- ¿Cuántas operaciones fueron denegadas por política?
+-- How many operations were denied by policy?
 SELECT policy_reason, COUNT(*) as count
 FROM audit_events
 WHERE policy_decision = 'DENY'
@@ -423,7 +423,7 @@ WHERE policy_decision = 'DENY'
 GROUP BY policy_reason
 ORDER BY count DESC;
 
--- ¿Quién aprobó operaciones en producción la última semana?
+-- Who approved production operations in the last week?
 SELECT approver, COUNT(*) as approvals
 FROM audit_events
 WHERE environment = 'prod'
@@ -435,85 +435,78 @@ GROUP BY approver;
 
 ---
 
-## Aislamiento de Red
+## Network Isolation
 
-El Execution Plane implementa aislamiento de red mediante tres perfiles configurables por tool.
+The Execution Plane implements network isolation through three profiles configurable per tool.
 
-### Perfiles de Red
+### Network Profiles
 
-| Perfil | Descripción | Inbound | Outbound | Ejemplos de tool |
+| Profile | Description | Inbound | Outbound | Tool examples |
 |---|---|---|---|---|
-| `none` | Sin red | Bloqueado | Bloqueado | `run_python` (cálculo local), `render_report` |
-| `outbound-only` | Solo salida | Bloqueado | Permitido | `run_sql_query`, `kubectl_apply`, `api_call` |
-| `full` | Bidireccional | Permitido | Permitido | `debug_session`, `db_tunnel`, `migration` |
+| `none` | No network | Blocked | Blocked | `run_python` (local computation), `render_report` |
+| `outbound-only` | Outbound only | Blocked | Allowed | `run_sql_query`, `kubectl_apply`, `api_call` |
+| `full` | Bidirectional | Allowed | Allowed | `debug_session`, `db_tunnel`, `migration` |
 
-### Implementación en Docker
+### Docker Implementation
 
 ```bash
-# none — sin red
+# none — no network
 docker run --network none ...
 
-# outbound-only — solo conexiones salientes
+# outbound-only — only outbound connections
 docker run --network bridge --publish-all=false ...
 
-# full — acceso completo
+# full — full access
 docker run --network host ...
-# O con bridge + puertos específicos mapeados
+# Or with bridge + specific ports mapped
 docker run --network bridge -p 8080:8080 ...
 ```
 
 ### Default: outbound-only
 
-El 90% de las tools usan `outbound-only`. Esto permite:
-- Consultar bases de datos
-- Hacer API calls a servicios internos
-- Ejecutar deploys a Kubernetes
+90% of tools use `outbound-only`. This allows:
+- Querying databases
+- Making API calls to internal services
+- Executing deploys to Kubernetes
 
-Pero impide:
-- Recibir conexiones entrantes (no hay servidores listening en el runner)
-- Escanear la red interna
-- Actuar como punto de pivot para ataques
+But prevents:
+- Receiving incoming connections (no listening servers in the runner)
+- Scanning the internal network
+- Acting as a pivot point for attacks
 
-### Proxy de Salida
+### Outbound Proxy
 
-Todo el tráfico outbound pasa por un **proxy forward** (Squid, mitmproxy) que:
+All outbound traffic goes through a **forward proxy** (Squid, mitmproxy) that:
 
-1. **Whitelist de destinos**: Solo dominios/IPs autorizados
-2. **Inspección TLS**: Tráfico HTTPS descifrado y re-inspeccionado
-3. **Rate limiting**: Límite de requests por job
-4. **Logging**: Todas las conexiones registradas en audit trail
-5. **Filtrado de contenido**: Bloqueo de descargas de ejecutables, payloads sospechosos
+1. **Destination whitelist**: Only authorized domains/IPs
+2. **TLS inspection**: Decrypted and re-inspected HTTPS traffic
+3. **Rate limiting**: Request limit per job
+4. **Logging**: All connections recorded in audit trail
+5. **Content filtering**: Blocking executable downloads, suspicious payloads
 
 ```yaml
 # proxy-policies.yaml
 proxy:
   whitelist:
-    - "*.internal.empresa.com"         # Servicios internos
+    - "*.internal.company.com"         # Internal services
     - "api.github.com"                 # GitHub API
     - "registry-1.docker.io"           # Docker Hub (pulls)
     - "*.googleapis.com"               # GCP APIs
-    - "database.empresa.com:5432"      # PostgreSQL corporativo
+    - "database.company.com:5432"      # Corporate PostgreSQL
   
   blacklist:
     - "*.pastebin.com"
     - "*.file.io"
-    - "192.168.0.0/16"                # Red interna no autorizada
-    - "10.0.0.0/8"
-  
-  rate_limit:
-    max_requests: 1000
-    window_seconds: 60
-  
-  tls_inspection: true                   # MITM para tráfico HTTPS
+    - "192.168.0.0/16"                # Unauthorized internal network
 ```
 
 ---
 
 ## Secrets Management
 
-CaS integra **HashiCorp Vault** como backend central de secrets. Las credenciales nunca se almacenan en código, variables de entorno, logs ni archivos de configuración.
+CaS integrates **HashiCorp Vault** as the central secrets backend. Credentials are never stored in code, environment variables, logs, or configuration files.
 
-### Jerarquía de Secretos en Vault
+### Secrets Hierarchy in Vault
 
 ```
 secret/
@@ -539,7 +532,7 @@ secret/
                 └── config
 ```
 
-### Políticas de Vault
+### Vault Policies
 
 ```hcl
 # Policy: db-reporting-readonly
@@ -553,58 +546,58 @@ path "secret/data/cas/org_*/db/reporting/readonly" {
   }
 }
 
-# Policy: job-execution (scoped por TTL)
+# Policy: job-execution (scoped by TTL)
 path "secret/data/cas/org_*/db/*" {
   capabilities = ["read"]
 }
-# TTL máximo: 300 segundos (duración máxima de job)
+# Max TTL: 300 seconds (maximum job duration)
 ```
 
-### Rotación Automática
+### Automatic Rotation
 
-Para bases de datos PostgreSQL, CaS usa **Vault Dynamic Secrets**:
+For PostgreSQL databases, CaS uses **Vault Dynamic Secrets**:
 
 ```hcl
-# Configuración de rotación de DB
+# DB rotation configuration
 path "database/creds/cas-reporting-role" {
   capabilities = ["read"]
-  # TTL: 5 minutos (duración típica de job)
-  # Max TTL: 30 minutos
+  # TTL: 5 minutes (typical job duration)
+  # Max TTL: 30 minutes
 }
 ```
 
-Cuando el runner solicita credenciales, Vault:
-1. Crea un usuario temporal en PostgreSQL
-2. Concede solo los permisos necesarios (READ en tablas específicas)
-3. Asigna TTL de 5 minutos
-4. Revoca automáticamente al expirar el TTL
+When the runner requests credentials, Vault:
+1. Creates a temporary user in PostgreSQL
+2. Grants only the necessary permissions (READ on specific tables)
+3. Assigns a TTL of 5 minutes
+4. Automatically revokes upon TTL expiration
 
 ---
 
 ## Data Governance
 
-### Clasificación de Datos
+### Data Classification
 
-CaS soporta un sistema de **catálogos de sensibilidad** que determinan qué datos puede ver cada rol:
+CaS supports a **sensitivity catalog** system that determines what data each role can see:
 
-| Nivel de Sensibilidad | Descripción | Roles con Acceso | Ejemplo |
+| Sensitivity Level | Description | Roles with Access | Example |
 |---|---|---|---|
-| **Público** | Datos no sensibles | Todos | Documentación, métricas de uptime |
-| **Interno** | Datos internos de la empresa | Todos los empleados | Reportes de equipo, dashboards internos |
-| **Confidencial** | Datos sensibles de negocio | Equipo autorizado | Datos financieros, estrategia de producto |
-| **Restringido** | Datos altamente sensibles | Roles específicos + justificación | PII de clientes, secretos comerciales |
-| **Crítico** | Datos con implicaciones legales | Aprobación explícita + audit trail completo | Datos bancarios, historial médico |
+| **Public** | Non-sensitive data | Everyone | Documentation, uptime metrics |
+| **Internal** | Internal company data | All employees | Team reports, internal dashboards |
+| **Confidential** | Sensitive business data | Authorized team | Financial data, product strategy |
+| **Restricted** | Highly sensitive data | Specific roles + justification | Customer PII, trade secrets |
+| **Critical** | Data with legal implications | Explicit approval + full audit trail | Banking data, medical history |
 
 ### PII Detection
 
-Los logs y outputs de los runners pasan por un **filtro de PII** (Personally Identifiable Information) que:
+Runner logs and outputs go through a **PII (Personally Identifiable Information) filter** that:
 
-1. Detecta patrones de PII: emails, teléfonos, direcciones, SSN, números de tarjeta
-2. Redacta automáticamente: reemplaza con `[REDACTED]`
-3. Registra la redacción en audit trail: cuántas instancias, qué tipo
+1. Detects PII patterns: emails, phones, addresses, SSN, credit card numbers
+2. Automatically redacts: replaces with `[REDACTED]`
+3. Records the redaction in audit trail: how many instances, what type
 
 ```python
-# PII Redaction Filter (implementado en el runner agent)
+# PII Redaction Filter (implemented in the runner agent)
 import re
 
 PII_PATTERNS = {
@@ -626,50 +619,50 @@ def redact_pii(text: str) -> tuple[str, list]:
     return redacted, findings
 ```
 
-### Compliance por Marco Regulatorio
+### Compliance by Regulatory Framework
 
-| Marco | Requisito | Implementación en CaS |
+| Framework | Requirement | Implementation in CaS |
 |---|---|---|
-| **SOC2** | Audit trail completo | Hash chain inmutable de eventos |
+| **SOC2** | Full audit trail | Immutable hash chain of events |
 | **SOC2** | Access controls | Policy Engine + OIDC + roles |
-| **GDPR** | Right to deletion | Delete cascade en MemoryItems + Audit trail anonymization |
-| **GDPR** | Data portability | Export de MemoryItems en JSON |
-| **SOX** | Approval workflows | Modo consultivo + REQUIRE_APPROVAL |
-| **SOX** | Segregación de duties | Separation of concerns entre planos |
-| **PCI DSS** | Cardholder data protection | PII detection + redaction automática |
+| **GDPR** | Right to deletion | Delete cascade on MemoryItems + Audit trail anonymization |
+| **GDPR** | Data portability | Export MemoryItems in JSON |
+| **SOX** | Approval workflows | Consultive mode + REQUIRE_APPROVAL |
+| **SOX** | Segregation of duties | Separation of concerns between planes |
+| **PCI DSS** | Cardholder data protection | PII detection + automatic redaction |
 | **PCI DSS** | Access control | Network isolation + credential scoping |
 
 ---
 
-## Monitoreo de Seguridad
+## Security Monitoring
 
-### Alertas Automáticas
+### Automatic Alerts
 
-| Evento | Severidad | Acción | Canal |
+| Event | Severity | Action | Channel |
 |---|---|---|---|
-| 5+ DENY consecutivos del mismo usuario | Media | Notificar al equipo de seguridad | Slack + Email |
-| Break-glass activado | Alta | Notificar inmediatamente | PagerDuty + Slack |
-| Job con patrones de ataque (SQL injection, RCE) | Crítica | Bloquear tool, notificar SOC | PagerDuty |
-| Token Vault no renovado | Alta | Deshabilitar runner | Slack |
-| Hash chain inválida | Crítica | Congelar sistema, notificar SOC | PagerDuty |
+| 5+ consecutive DENY from same user | Medium | Notify security team | Slack + Email |
+| Break-glass activated | High | Notify immediately | PagerDuty + Slack |
+| Job with attack patterns (SQL injection, RCE) | Critical | Block tool, notify SOC | PagerDuty |
+| Vault token not renewed | High | Disable runner | Slack |
+| Invalid hash chain | Critical | Freeze system, notify SOC | PagerDuty |
 
-### Métricas de Seguridad (Prometheus)
+### Security Metrics (Prometheus)
 
-| Métrica | Descripción |
+| Metric | Description |
 |---|---|
-| `cas.security.denies_total` | Total de operaciones denegadas |
-| `cas.security.approvals_required` | Operaciones que requirieron aprobación |
-| `cas.security.approval_time_seconds` | Tiempo hasta aprobación/denegación |
-| `cas.security.break_glass_active` | 1 si break-glass está activo |
-| `cas.security.pii_redactions_total` | Instancias de PII redactadas |
-| `cas.security.chain_integrity` | 1 si hash chain es válida |
+| `cas.security.denies_total` | Total denied operations |
+| `cas.security.approvals_required` | Operations that required approval |
+| `cas.security.approval_time_seconds` | Time until approval/denial |
+| `cas.security.break_glass_active` | 1 if break-glass is active |
+| `cas.security.pii_redactions_total` | Instances of redacted PII |
+| `cas.security.chain_integrity` | 1 if hash chain is valid |
 
 ---
 
-## Siguiente
+## Next
 
-Continúa con las **[Verticales de Dominio](07-domain-verticals.md)** , donde se describe cómo especializar CaS para dominios de negocio específicos (DevOps, Marketing, Finance) con vocabulario propio, mapeo de tareas a tools y políticas específicas.
+Continue with the **[Domain Verticals](07-domain-verticals.md)** , which describes how to specialize CaS for specific business domains (DevOps, Marketing, Finance) with custom vocabulary, task-to-tool mapping, and specific policies.
 
 ---
 
-*Última actualización: 2026-05-31*
+*Last updated: 2026-05-31*

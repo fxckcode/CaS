@@ -1,36 +1,36 @@
-# CaS — Verticales de Dominio
+# CaS — Domain Verticals
 
 **CLI as a Service Reference Architecture**
 
-- **Licencia:** MIT
-- **Repositorio:** [github.com/fxckcode/CaS](https://github.com/fxckcode/CaS)
-- **Última actualización:** 2026-05-31
+- **License:** MIT
+- **Repository:** [github.com/fxckcode/CaS](https://github.com/fxckcode/CaS)
+- **Last updated:** 2026-05-31
 
 ---
 
-## Concepto
+## Concept
 
-Una **vertical** en CaS es una especialización del sistema para un dominio de negocio específico. No es un producto separado ni un fork — es una **configuración empaquetada** que incluye:
+A **vertical** in CaS is a specialization of the system for a specific business domain. It is not a separate product or a fork — it is a **packaged configuration** that includes:
 
-1. **Vocabulario de tareas de negocio** — Un mini-DSL que permite a los usuarios de ese dominio expresar Goals en su propio lenguaje
-2. **Mapeo de tareas a tools** — Cómo las tareas de alto nivel se traducen a secuencias de tools atómicas del registry
-3. **KPIs de dominio** — Métricas de éxito que van más allá de "job succeeded" (ej: "reporte generado en < 30s", "deploy con 0 downtime")
-4. **Policies específicas** — Reglas OPA adaptadas a los riesgos y requisitos del dominio
-5. **Ejemplos documentados** — Goals canónicos que los usuarios pueden copiar y adaptar
+1. **Business task vocabulary** — A mini-DSL that allows users in that domain to express Goals in their own language
+2. **Task-to-tool mapping** — How high-level tasks translate into sequences of atomic tools from the registry
+3. **Domain KPIs** — Success metrics that go beyond "job succeeded" (e.g., "report generated in < 30s", "deploy with 0 downtime")
+4. **Specific policies** — OPA rules adapted to the risks and requirements of the domain
+5. **Documented examples** — Canonical Goals that users can copy and adapt
 
-### Estructura de una Vertical
+### Vertical Structure
 
-Cada vertical vive en una estructura de directorios dentro del repositorio de configuración de CaS:
+Each vertical lives in a directory structure within the CaS configuration repository:
 
 ```
 verticals/
 ├── devops/
-│   ├── vertical.yaml          # Metadatos de la vertical
-│   ├── vocabulary.yaml        # Tareas de negocio → tools
-│   ├── kpis.yaml              # Definiciones de KPIs
+│   ├── vertical.yaml          # Vertical metadata
+│   ├── vocabulary.yaml        # Business tasks → tools
+│   ├── kpis.yaml              # KPI definitions
 │   ├── policies/
-│   │   ├── deploy.rego        # Políticas de deploy
-│   │   └── access.rego        # Políticas de acceso
+│   │   ├── deploy.rego        # Deploy policies
+│   │   └── access.rego        # Access policies
 │   └── examples/
 │       ├── deploy-service.md
 │       └── migrate-database.md
@@ -40,14 +40,14 @@ verticals/
     └── ...
 ```
 
-### Archivo vertical.yaml
+### vertical.yaml File
 
 ```yaml
 name: devops
 display_name: DevOps
-description: Operaciones de infraestructura, deploy y CI/CD
+description: Infrastructure operations, deploy, and CI/CD
 version: 1.0.0
-author: sre-team@empresa.com
+author: sre-team@company.com
 
 defaults:
   autonomy_mode: semi-autonomous
@@ -76,134 +76,134 @@ kpis:
 
 ---
 
-## Cómo Crear una Vertical
+## How to Create a Vertical
 
-Crear una vertical nueva sigue un proceso de 5 pasos:
+Creating a new vertical follows a 5-step process:
 
-### Paso 1: Definir el Vocabulario
+### Step 1: Define the Vocabulary
 
-Identificar las **tareas de negocio** que los usuarios de ese dominio quieren expresar en lenguaje natural. Cada tarea se documenta con:
+Identify the **business tasks** that users in that domain want to express in natural language. Each task is documented with:
 
-- **Nombre**: Verbo + objeto (e.g., "generar reporte semanal", "migrar base de datos")
-- **Descripción**: Qué hace la tarea en lenguaje de negocio
-- **Ejemplos de Goals**: Frases que un usuario escribiría
-- **Parámetros de dominio**: Variables específicas del dominio (e.g., "presupuesto máximo" para marketing)
+- **Name**: Verb + object (e.g., "generate weekly report", "migrate database")
+- **Description**: What the task does in business language
+- **Goal examples**: Phrases a user would write
+- **Domain parameters**: Domain-specific variables (e.g., "max budget" for marketing)
 
 ```yaml
-# vocabulary.yaml (ejemplo para Finance)
+# vocabulary.yaml (Finance example)
 tasks:
-  - name: generar_reporte_financiero
-    description: Genera un reporte financiero con datos de ingresos, gastos y proyecciones
+  - name: generate_financial_report
+    description: Generates a financial report with revenue, expense, and projections data
     examples:
-      - "Genera el reporte financiero del mes de mayo"
-      - "Prepara el reporte de Q2 para el equipo directivo"
-      - "Ejecuta el cierre mensual y genera los reportes asociados"
+      - "Generate the May financial report"
+      - "Prepare the Q2 report for the management team"
+      - "Run the monthly close and generate associated reports"
     parameters:
-      - name: periodo
+      - name: period
         type: string
-        description: Período del reporte (ej: "mayo-2026", "Q2-2026")
+        description: Report period (e.g., "may-2026", "Q2-2026")
         required: true
-      - name: tipo_reporte
+      - name: report_type
         type: string
-        enum: [completo, ejecutivo, detallado]
-        default: completo
+        enum: [full, executive, detailed]
+        default: full
   
-  - name: reconciliar_cuentas
-    description: Reconoce y concilia movimientos contables entre sistemas
+  - name: reconcile_accounts
+    description: Recognizes and reconciles accounting entries between systems
     examples:
-      - "Reconcilia las cuentas de abril entre SAP y QuickBooks"
-      - "Ejecuta la reconciliación mensual de ingresos"
+      - "Reconcile April accounts between SAP and QuickBooks"
+      - "Run the monthly revenue reconciliation"
     parameters:
-      - name: mes
+      - name: month
         type: string
         required: true
-      - name: fuentes
+      - name: sources
         type: string[]
         default: [sap, quickbooks]
 ```
 
-### Paso 2: Mapear Tareas a Tools
+### Step 2: Map Tasks to Tools
 
-Cada tarea de negocio se traduce a una **secuencia de tools** del Tools Registry. El mapeo puede ser:
+Each business task translates to a **sequence of tools** from the Tools Registry. The mapping can be:
 
-- **1:1** — Una tarea = una tool (simple, directo)
-- **1:N** — Una tarea = varias tools en secuencia (compuesto)
-- **M:N** — Una tarea puede resolverse con diferentes combinaciones de tools (flexible)
+- **1:1** — One task = one tool (simple, direct)
+- **1:N** — One task = multiple tools in sequence (composite)
+- **M:N** — One task can be solved with different tool combinations (flexible)
 
 ```yaml
-# vocabulary.yaml (continuación)
+# vocabulary.yaml (continuation)
 mappings:
-  - task: generar_reporte_financiero
+  - task: generate_financial_report
     strategies:
-      # Estrategia principal: vía SQL + Python + render
+      # Main strategy: via SQL + Python + render
       - priority: 1
         steps:
           - tool: run_sql_query
             parameters:
-              query: "SELECT * FROM revenue WHERE month = '{periodo}'"
+              query: "SELECT * FROM revenue WHERE month = '{period}'"
               database: reporting
           - tool: run_python
             parameters:
-              script: "generar_graficos.py --periodo {periodo}"
+              script: "generate_charts.py --period {period}"
           - tool: render_report
             parameters:
               template: "financial_report"
               format: pdf
-              output: "/output/reporte-{periodo}.pdf"
+              output: "/output/report-{period}.pdf"
           - tool: send_email
             parameters:
-              to: "finance-team@empresa.com"
-              subject: "Reporte financiero {periodo}"
-              attachment: "/output/reporte-{periodo}.pdf"
+              to: "finance-team@company.com"
+              subject: "Financial report {period}"
+              attachment: "/output/report-{period}.pdf"
       
-      # Estrategia alternativa: usar API de BI tool existente
+      # Alternative strategy: use existing BI tool API
       - priority: 2
         steps:
           - tool: api_call
             parameters:
-              url: "https://bi.internal.empresa.com/api/reports"
+              url: "https://bi.internal.company.com/api/reports"
               method: POST
               body: |
                 {
                   "template": "monthly_financial",
-                  "period": "{periodo}",
+                  "period": "{period}",
                   "format": "pdf"
                 }
 ```
 
-### Paso 3: Definir KPIs de Dominio
+### Step 3: Define Domain KPIs
 
-Los KPIs de dominio reemplazan las métricas genéricas de "job succeeded" con métricas significativas para el negocio:
+Domain KPIs replace generic "job succeeded" metrics with meaningful business metrics:
 
 ```yaml
 # kpis.yaml (Finance)
 kpis:
   - name: report_accuracy
-    description: Precisión de los datos del reporte vs. fuente de verdad
-    measurement: compare_rows(reporte.generated, fuente_verdad)
+    description: Accuracy of report data vs. source of truth
+    measurement: compare_rows(report.generated, truth_source)
     target: "> 99.9%"
     alert: "< 99.5%"
   
   - name: report_generation_time
-    description: Tiempo desde que se solicita el reporte hasta que se entrega
+    description: Time from report request to delivery
     measurement: goal.completed_at - goal.created_at
     target: "< 30s"
     alert: "> 60s"
   
   - name: reconciliation_time
-    description: Tiempo para reconciliar un mes de datos
-    measurement: promedio de duración de goals de reconciliación
+    description: Time to reconcile one month of data
+    measurement: average duration of reconciliation goals
     target: "< 5 min"
     alert: "> 15 min"
   
   - name: forecast_error_rate
-    description: Diferencia entre pronóstico y datos reales
+    description: Difference between forecast and actual data
     measurement: MAPE(forecast, actual)
     target: "< 5%"
     alert: "> 10%"
 ```
 
-### Paso 4: Configurar Policies Específicas del Dominio
+### Step 4: Configure Domain-Specific Policies
 
 ```rego
 # policies/finance/operations.rego
@@ -211,42 +211,42 @@ package cas.domains.finance
 
 import future.keywords.if
 
-# Analysts solo pueden leer datos agregados
+# Analysts can only read aggregated data
 allow if {
     input.role == "analyst"
     input.domain == "finance"
     input.tool.type == "read"
-    input.tool.name != "run_sql_query"  # No SQL directo para analysts
+    input.tool.name != "run_sql_query"  # No direct SQL for analysts
 }
 
-# Analysts pueden usar reportes predefinidos
+# Analysts can use predefined reports
 allow if {
     input.role == "analyst"
     input.domain == "finance"
     input.tool.name == "render_report"
 }
 
-# Contadores pueden hacer consultas SQL detalladas
+# Accountants can run detailed SQL queries
 allow if {
     input.role == "accountant"
     input.domain == "finance"
     input.tool.type in ["read", "execute"]
 }
 
-# Cualquier escritura en finance requiere aprobación + justificación
+# Any write in finance requires approval + justification
 require_approval if {
     input.domain == "finance"
     input.tool.type in ["write", "execute"]
 }
 
-# Exportación de datos financieros solo a destinos aprobados
+# Financial data export only to approved destinations
 deny if {
     input.domain == "finance"
     input.tool.name == "send_email"
     not data.finance_approved_destinations[input.parameters.to]
 }
 
-# Data de producción finance no puede salir del país
+# Production finance data cannot leave the country
 deny if {
     input.domain == "finance"
     input.environment == "prod"
@@ -256,138 +256,138 @@ deny if {
 }
 ```
 
-### Paso 5: Documentar Ejemplos
+### Step 5: Document Examples
 
-Cada vertical incluye Goals de ejemplo que los usuarios pueden copiar directamente:
+Each vertical includes example Goals that users can copy directly:
 
 ```markdown
-# Ejemplo: Deploy a producción con blue-green
+# Example: Blue-green production deploy
 
 ## Goal
 ```
-Deploy versión 2.5 del servicio de pagos a producción usando el
-patrón blue-green. Verificar health checks antes de cortar tráfico.
+Deploy version 2.5 of the payments service to production using the
+blue-green pattern. Verify health checks before cutting traffic.
 ```
 
-## Comportamiento esperado
-1. Build de la imagen Docker con tag v2.5
-2. Deploy a entorno green en Kubernetes
-3. Health check en el green (timeout: 60s)
-4. Si health check pasa → cortar tráfico a green
-5. Si health check falla → rollback automático a blue
-6. Notificar al equipo en Slack
+## Expected behavior
+1. Build Docker image with tag v2.5
+2. Deploy to green environment on Kubernetes
+3. Health check on green (timeout: 60s)
+4. If health check passes → cut traffic to green
+5. If health check fails → automatic rollback to blue
+6. Notify the team on Slack
 
-## Políticas aplicables
-- Deploy a prod requiere aprobación (modo semi-autónomo)
-- Rollback es automático (no requiere aprobación)
-- Health check obligatorio antes de corte de tráfico
+## Applicable policies
+- Deploy to prod requires approval (semi-autonomous mode)
+- Rollback is automatic (no approval required)
+- Health check mandatory before traffic cut
 
-## Tiempo estimado: 3-5 minutos
+## Estimated time: 3-5 minutes
 ```
 
 ---
 
 ## Vertical: DevOps
 
-La vertical de DevOps es la más común y la que viene pre-configurada en CaS. Cubre operaciones de infraestructura, deploy, CI/CD y administración de sistemas.
+The DevOps vertical is the most common and comes pre-configured in CaS. It covers infrastructure operations, deploy, CI/CD, and systems administration.
 
-### Vocabulario
+### Vocabulary
 
-| Tarea de Negocio | Descripción | Tools |
+| Business Task | Description | Tools |
 |---|---|---|
-| `deploy_service` | Desplegar una nueva versión de un servicio | `docker_build`, `helm_deploy`, `kubectl_apply`, `smoke_test` |
-| `rollback_deploy` | Revertir un deploy a una versión anterior | `helm_rollback`, `kubectl_rollout_undo` |
-| `migrate_database` | Ejecutar migraciones de base de datos | `db_migrate`, `run_shell` (backup), `verify_data` |
-| `scale_service` | Escalar horizontalmente un servicio | `kubectl_scale` |
-| `audit_logs` | Revisar logs de un servicio en un período | `run_shell` (grep, journalctl), `aggregate_logs` |
-| `backup` | Ejecutar backup de base de datos o volumen | `run_shell` (pg_dump, tar), `upload_to_s3` |
-| `provision_infra` | Provisionar infraestructura con Terraform | `terraform_plan`, `terraform_apply` |
-| `restart_service` | Reiniciar un servicio | `kubectl_rollout_restart`, `systemctl_restart` |
+| `deploy_service` | Deploy a new version of a service | `docker_build`, `helm_deploy`, `kubectl_apply`, `smoke_test` |
+| `rollback_deploy` | Revert a deploy to a previous version | `helm_rollback`, `kubectl_rollout_undo` |
+| `migrate_database` | Execute database migrations | `db_migrate`, `run_shell` (backup), `verify_data` |
+| `scale_service` | Horizontally scale a service | `kubectl_scale` |
+| `audit_logs` | Review service logs for a period | `run_shell` (grep, journalctl), `aggregate_logs` |
+| `backup` | Execute database or volume backup | `run_shell` (pg_dump, tar), `upload_to_s3` |
+| `provision_infra` | Provision infrastructure with Terraform | `terraform_plan`, `terraform_apply` |
+| `restart_service` | Restart a service | `kubectl_rollout_restart`, `systemctl_restart` |
 
 ### KPIs
 
-| KPI | Descripción | Target | Alerta |
+| KPI | Description | Target | Alert |
 |---|---|---|---|
-| `deployment_frequency` | Frecuencia de deploys a producción por semana | > 10/semana | < 3/semana |
-| `deployment_success_rate` | % de deploys exitosos sin rollback | > 99% | < 95% |
-| `mttr` | Mean Time To Recover (minutos) | < 30 min | > 120 min |
-| `rollback_success_rate` | % de rollbacks que restauran el servicio | > 99% | < 90% |
-| `pipeline_duration` | Duración media del pipeline CI/CD | < 10 min | > 30 min |
+| `deployment_frequency` | Production deploy frequency per week | > 10/week | < 3/week |
+| `deployment_success_rate` | % of successful deploys without rollback | > 99% | < 95% |
+| `mttr` | Mean Time To Recover (minutes) | < 30 min | > 120 min |
+| `rollback_success_rate` | % of rollbacks that restore service | > 99% | < 90% |
+| `pipeline_duration` | Average CI/CD pipeline duration | < 10 min | > 30 min |
 
 ### Policies
 
 ```rego
 package cas.domains.devops
 
-# Escritura en producción requiere aprobación
+# Write in production requires approval
 require_approval if {
     input.domain == "devops"
     input.environment == "prod"
     input.tool.type in ["write", "execute"]
 }
 
-# Rollbacks son automáticos (no requieren aprobación)
+# Rollbacks are automatic (no approval required)
 allow if {
     input.domain == "devops"
     input.tool.name == "helm_rollback"
 }
 
-# Terraform plan es solo lectura (siempre permitido)
+# Terraform plan is read-only (always allowed)
 allow if {
     input.domain == "devops"
     input.tool.name == "terraform_plan"
 }
 ```
 
-### Goals de Ejemplo
+### Example Goals
 
 ```markdown
-# Escalar servicio de pagos
+# Scale payments service
 
-Goal: "Escalar el servicio de pagos a 5 réplicas en producción"
+Goal: "Scale the payments service to 5 replicas in production"
 
-Plan generado:
+Generated plan:
 1. kubectl_scale(deployment: "payments", replicas: 5, env: "prod")
-   → REQUIRE_APPROVAL (escritura en prod)
+   → REQUIRE_APPROVAL (write in prod)
 2. smoke_test(url: "https://payments.internal/health")
-   → ALLOW (solo lectura)
+   → ALLOW (read-only)
 
-Si se aprueba el paso 1 → ejecución automática del paso 2
+If step 1 is approved → automatic execution of step 2
 ```
 
 ---
 
 ## Vertical: Marketing
 
-La vertical de Marketing permite a los equipos de marketing ejecutar campañas, segmentar audiencias y generar reportes sin necesidad de herramientas técnicas.
+The Marketing vertical allows marketing teams to execute campaigns, segment audiences, and generate reports without needing technical tools.
 
-### Vocabulario
+### Vocabulary
 
-| Tarea de Negocio | Descripción | Tools |
+| Business Task | Description | Tools |
 |---|---|---|
-| `launch_campaign` | Lanzar una campaña en múltiples canales | `api_call` (CRM), `send_email`, `api_call` (ads) |
-| `segment_audience` | Segmentar audiencia basada en criterios | `run_sql_query`, `run_python` (clustering) |
-| `ab_test` | Configurar y monitorear un A/B test | `api_call` (experimentation), `render_report` |
-| `analytics_report` | Generar reporte de métricas de campaña | `run_sql_query`, `render_report`, `send_email` |
-| `import_leads` | Importar leads desde CSV a CRM | `run_python`, `api_call` (CRM batch) |
-| `social_media_post` | Programar publicación en redes sociales | `api_call` (social media API) |
+| `launch_campaign` | Launch a campaign on multiple channels | `api_call` (CRM), `send_email`, `api_call` (ads) |
+| `segment_audience` | Segment audience based on criteria | `run_sql_query`, `run_python` (clustering) |
+| `ab_test` | Set up and monitor an A/B test | `api_call` (experimentation), `render_report` |
+| `analytics_report` | Generate campaign metrics report | `run_sql_query`, `render_report`, `send_email` |
+| `import_leads` | Import leads from CSV to CRM | `run_python`, `api_call` (CRM batch) |
+| `social_media_post` | Schedule social media post | `api_call` (social media API) |
 
 ### KPIs
 
-| KPI | Descripción | Target | Alerta |
+| KPI | Description | Target | Alert |
 |---|---|---|---|
-| `campaign_roi` | Retorno de inversión de campañas | > 3x | < 1.5x |
-| `conversion_rate` | Tasa de conversión de campañas | > 5% | < 2% |
-| `audience_reach` | Número de personas alcanzadas por campaña | > 100K | < 50K |
-| `campaign_launch_time` | Tiempo desde idea hasta campaña activa | < 2h | > 8h |
-| `lead_quality_score` | Calidad promedio de leads generados | > 80% | < 60% |
+| `campaign_roi` | Campaign return on investment | > 3x | < 1.5x |
+| `conversion_rate` | Campaign conversion rate | > 5% | < 2% |
+| `audience_reach` | Number of people reached by campaign | > 100K | < 50K |
+| `campaign_launch_time` | Time from idea to active campaign | < 2h | > 8h |
+| `lead_quality_score` | Average quality of generated leads | > 80% | < 60% |
 
 ### Policies
 
 ```rego
 package cas.domains.marketing
 
-# Límites de presupuesto por campaña
+# Budget limits per campaign
 deny if {
     input.domain == "marketing"
     input.tool.name == "api_call"
@@ -395,7 +395,7 @@ deny if {
     input.parameters.budget > data.department_budget_remaining
 }
 
-# No PII en campañas sin aprobación de compliance
+# No PII in campaigns without compliance approval
 require_approval if {
     input.domain == "marketing"
     input.tool.name == "run_sql_query"
@@ -403,7 +403,7 @@ require_approval if {
     contains(input.parameters.query, "phone")
 }
 
-# Límite de velocidad de envío de emails
+# Email sending speed limit
 deny if {
     input.domain == "marketing"
     input.tool.name == "send_email"
@@ -411,53 +411,53 @@ deny if {
 }
 ```
 
-### Goals de Ejemplo
+### Example Goals
 
 ```markdown
-# Campaña de email segmentada
+# Segmented email campaign
 
-Goal: "Crear una campaña de email para clientes que no han comprado en 90 días,
-con un presupuesto máximo de $5000, y generar reporte de resultados"
+Goal: "Create an email campaign for customers who haven't purchased in 90 days,
+with a maximum budget of $5000, and generate a results report"
 
-Plan generado:
+Generated plan:
 1. run_sql_query("SELECT email, name, last_purchase FROM customers 
                   WHERE last_purchase < NOW() - INTERVAL '90 days'")
-   → REQUIRE_APPROVAL (PII en query)
-2. run_python("segmentar_audiencia.py --input /tmp/leads.csv --segments 3")
-   → ALLOW (bajo riesgo)
+   → REQUIRE_APPROVAL (PII in query)
+2. run_python("segment_audience.py --input /tmp/leads.csv --segments 3")
+   → ALLOW (low risk)
 3. api_call(api: "email_marketing", action: "create_campaign", budget: 5000)
-   → ALLOW (presupuesto dentro del límite)
+   → ALLOW (budget within limit)
 4. send_email(template: "reengagement", segments: [...], recipients: 8500)
-   → REQUIRE_APPROVAL (> 10000 recipients requiere aprobación)
+   → REQUIRE_APPROVAL (> 10000 recipients requires approval)
 ```
 
 ---
 
 ## Vertical: Finance
 
-La vertical de Finance es la más sensible y con mayor cantidad de controles. Diseñada para equipos de finanzas, contabilidad y auditoría.
+The Finance vertical is the most sensitive and has the highest number of controls. Designed for finance, accounting, and audit teams.
 
-### Vocabulario
+### Vocabulary
 
-| Tarea de Negocio | Descripción | Tools |
+| Business Task | Description | Tools |
 |---|---|---|
-| `generate_report` | Generar reporte financiero (ingresos, gastos, P&L) | `run_sql_query`, `run_python`, `render_report` |
-| `reconcile_accounts` | Reconciliar cuentas entre sistemas | `run_sql_query` (dual), `run_python` (matching) |
-| `forecast_revenue` | Generar pronóstico de ingresos | `run_python` (time series), `ml_inference` |
-| `audit_trail` | Extraer trail de auditoría para un período | `run_sql_query`, `export_to_excel` |
-| `close_period` | Ejecutar cierre contable mensual/trimestral | `run_sql_query`, `run_python`, `send_email` (aprobación) |
-| `compliance_check` | Ejecutar checks de cumplimiento normativo | `run_python` (rules engine), `render_report` |
-| `budget_vs_actual` | Comparar presupuesto vs. gasto real | `run_sql_query`, `render_report` |
+| `generate_report` | Generate financial report (revenue, expenses, P&L) | `run_sql_query`, `run_python`, `render_report` |
+| `reconcile_accounts` | Reconcile accounts between systems | `run_sql_query` (dual), `run_python` (matching) |
+| `forecast_revenue` | Generate revenue forecast | `run_python` (time series), `ml_inference` |
+| `audit_trail` | Extract audit trail for a period | `run_sql_query`, `export_to_excel` |
+| `close_period` | Execute monthly/quarterly accounting close | `run_sql_query`, `run_python`, `send_email` (approval) |
+| `compliance_check` | Execute compliance checks | `run_python` (rules engine), `render_report` |
+| `budget_vs_actual` | Compare budget vs. actual spend | `run_sql_query`, `render_report` |
 
 ### KPIs
 
-| KPI | Descripción | Target | Alerta |
+| KPI | Description | Target | Alert |
 |---|---|---|---|
-| `report_accuracy` | Precisión de datos vs. fuente de verdad | > 99.9% | < 99.5% |
-| `reconciliation_time` | Tiempo para reconciliar un período | < 5 min | > 15 min |
-| `forecast_error_rate` | MAPE de pronóstico vs. real | < 5% | > 10% |
-| `close_time` | Tiempo para cerrar un período contable | < 3 días | > 7 días |
-| `audit_completeness` | % de transacciones con trail completo | 100% | < 100% |
+| `report_accuracy` | Data accuracy vs. source of truth | > 99.9% | < 99.5% |
+| `reconciliation_time` | Time to reconcile a period | < 5 min | > 15 min |
+| `forecast_error_rate` | MAPE of forecast vs. actual | < 5% | > 10% |
+| `close_time` | Time to close an accounting period | < 3 days | > 7 days |
+| `audit_completeness` | % of transactions with full trail | 100% | < 100% |
 
 ### Policies
 
@@ -467,10 +467,10 @@ package cas.domains.finance
 import future.keywords.if
 
 # ==========================================
-# Reglas por Rol
+# Role-based Rules
 # ==========================================
 
-# Analysts solo lectura, sin SQL directo
+# Analysts read-only, no direct SQL
 allow if {
     input.role == "analyst"
     input.domain == "finance"
@@ -478,7 +478,7 @@ allow if {
     input.tool.name != "run_sql_query"
 }
 
-# Accountants pueden SQL + escritura en dev/staging
+# Accountants can SQL + write in dev/staging
 allow if {
     input.role == "accountant"
     input.domain == "finance"
@@ -486,7 +486,7 @@ allow if {
     input.tool.type in ["read", "write"]
 }
 
-# Controllers pueden todo en finance (con aprobación para escritura en prod)
+# Controllers can do everything in finance (with approval for write in prod)
 allow if {
     input.role == "controller"
     input.domain == "finance"
@@ -500,16 +500,16 @@ require_approval if {
 }
 
 # ==========================================
-# Reglas por Tipo de Operación
+# Operation Type Rules
 # ==========================================
 
-# Toda operación de escritura requiere aprobación + justificación
+# Every write operation requires approval + justification
 require_approval if {
     input.domain == "finance"
     input.tool.type == "write"
 }
 
-# Exportación de datos solo a destinatarios aprobados
+# Data export only to approved recipients
 deny if {
     input.domain == "finance"
     input.tool.name == "send_email"
@@ -517,69 +517,69 @@ deny if {
 }
 
 # ==========================================
-# Reglas de Auditoría
+# Audit Rules
 # ==========================================
 
-# Toda operación en finance debe tener audit trail completo
+# Every finance operation must have full audit trail
 audit.mandatory_fields if {
     input.domain == "finance"
 }
 ```
 
-### Goals de Ejemplo
+### Example Goals
 
 ```markdown
-# Cierre Mensual
+# Monthly Close
 
-Goal: "Ejecutar el cierre contable de mayo 2026: reconciliar cuentas,
-generar reporte P&L, y enviar aprobación al controller"
+Goal: "Execute the May 2026 accounting close: reconcile accounts,
+generate P&L report, and send approval to the controller"
 
-Plan generado:
+Generated plan:
 1. run_sql_query("SELECT * FROM ledger WHERE month = '2026-05'")
-   → ALLOW (accountant, lectura)
+   → ALLOW (accountant, read)
 2. run_python("reconcile.py --month 2026-05 --sources sap,quickbooks")
-   → ALLOW (accountant, ejecución en dev)
+   → ALLOW (accountant, execute in dev)
 3. run_sql_query("INSERT INTO closed_periods VALUES ('2026-05')")
-   → REQUIRE_APPROVAL (escritura en finance)
+   → REQUIRE_APPROVAL (write in finance)
 4. render_report(template: "pnl_monthly", period: "2026-05")
-   → ALLOW (accountant, solo lectura de template)
-5. send_email(to: "controller@empresa.com", 
-              subject: "Aprobación cierre mayo 2026",
+   → ALLOW (accountant, template read-only)
+5. send_email(to: "controller@company.com", 
+              subject: "May 2026 close approval",
               attachment: "/output/pnl-2026-05.pdf")
-   → ALLOW (controller está en whitelist de finance)
+   → ALLOW (controller is in finance whitelist)
 ```
 
 ---
 
-## Extensibilidad
+## Extensibility
 
-### Cómo Contribuir una Nueva Vertical
+### How to Contribute a New Vertical
 
-1. **Fork** el repositorio de configuración de CaS
-2. **Crear directorio** en `verticals/{nombre}/` con la estructura descrita
-3. **Definir vocabulary.yaml** con tareas de negocio y mapeo a tools
-4. **Definir kpis.yaml** con métricas de dominio
-5. **Escribir policies.rego** con reglas específicas del dominio
-6. **Documentar ejemplos** en `examples/`
-7. **Enviar PR** para revisión por el equipo de arquitectura
+1. **Fork** the CaS configuration repository
+2. **Create directory** in `verticals/{name}/` with the described structure
+3. **Define vocabulary.yaml** with business tasks and tool mappings
+4. **Define kpis.yaml** with domain metrics
+5. **Write policies.rego** with domain-specific rules
+6. **Document examples** in `examples/`
+7. **Submit PR** for review by the architecture team
 
-### Buenas Prácticas para Verticales
+### Best Practices for Verticals
 
-| Principio | Descripción |
+| Principle | Description |
 |---|---|
-| **Vocabulario de negocio, no técnico** | "reconciliar cuentas", no "ejecutar SQL JOIN entre tablas" |
-| **KPIs orientados a resultados** | "reporte generado en < 30s", no "job duration < 30s" |
-| **Policies por defecto restrictivas** | Empezar restrictivo, relajar según necesidad |
-| **Ejemplos canónicos** | 3-5 Goals de ejemplo que cubran los casos de uso principales |
-| **Tools existentes primero** | Reusar tools del registry antes de crear nuevas |
-| **Versionado semántico** | La vertical tiene su propio versionado independiente |
+| **Business vocabulary, not technical** | "reconcile accounts", not "execute SQL JOIN between tables" |
+| **Result-oriented KPIs** | "report generated in < 30s", not "job duration < 30s" |
+| **Default restrictive policies** | Start restrictive, relax as needed |
+| **Canonical examples** | 3-5 example Goals covering main use cases |
+| **Existing tools first** | Reuse registry tools before creating new ones |
+| **Semantic versioning** | The vertical has its own independent versioning |
 
 ---
 
-## Siguiente
+## Next
 
-Este documento concluye el recorrido por la arquitectura CaS. Para volver al inicio y tener una visión global del sistema, consulta la **[Visión General](01-overview.md)** .
+This document concludes the walkthrough of the CaS architecture. To return to the beginning and get a global view of the system, refer to the **[Overview](01-overview.md)** .
 
 ---
 
-*Última actualización: 2026-05-31*
+*Last updated: 2026-05-31*

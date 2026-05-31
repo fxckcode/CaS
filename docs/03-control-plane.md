@@ -2,15 +2,15 @@
 
 **CLI as a Service Reference Architecture**
 
-- **Licencia:** MIT
-- **Repositorio:** [github.com/fxckcode/CaS](https://github.com/fxckcode/CaS)
-- **Última actualización:** 2026-05-31
+- **License:** MIT
+- **Repository:** [github.com/fxckcode/CaS](https://github.com/fxckcode/CaS)
+- **Last updated:** 2026-05-31
 
 ---
 
-## Vista General
+## Overview
 
-El Control Plane es el **cerebro del sistema**. Contiene toda la lógica de orquestación, planificación, evaluación de políticas y registro de capacidades. Opera bajo un principio fundamental: **nunca ejecuta código directamente**. Delega toda ejecución al Execution Plane a través de una cola de mensajes asincrónica.
+The Control Plane is the **brain of the system**. It contains all orchestration logic, planning, policy evaluation, and capability registration. It operates under a fundamental principle: **it never executes code directly**. It delegates all execution to the Execution Plane through an asynchronous message queue.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -40,93 +40,93 @@ El Control Plane es el **cerebro del sistema**. Contiene toda la lógica de orqu
 
 ## API Gateway
 
-El API Gateway es la **puerta de entrada única** a CaS. Todos los clientes (CLI, web, Slack, desktop) se conectan a través de él.
+The API Gateway is the **single entry door** to CaS. All clients (CLI, web, Slack, desktop) connect through it.
 
 ### Endpoints
 
-| Método | Ruta | Autenticación | Límite | Descripción |
+| Method | Path | Authentication | Limit | Description |
 |---|---|---|---|---|
-| `POST` | `/goals` | Requerida | 10/min per user | Crear un nuevo Goal |
-| `GET` | `/goals/:id` | Requerida | 60/min per user | Obtener estado de un Goal |
-| `GET` | `/goals` | Requerida | 30/min per user | Listar Goals con filtros |
-| `POST` | `/goals/:id/cancel` | Requerida | 10/min per user | Cancelar Goal |
-| `POST` | `/goals/:id/approve` | Requerida + rol | 20/min per user | Aprobar step |
-| `POST` | `/goals/:id/deny` | Requerida + rol | 20/min per user | Denegar step |
-| `GET` | `/tools` | Requerida | 60/min per user | Listar tools |
-| `GET` | `/tools/:name` | Requerida | 60/min per user | Tool descriptor |
-| `GET` | `/health` | Pública | — | Health check |
-| `WS` | `/ws` | Requerida (token en query) | — | Streaming |
+| `POST` | `/goals` | Required | 10/min per user | Create a new Goal |
+| `GET` | `/goals/:id` | Required | 60/min per user | Get Goal status |
+| `GET` | `/goals` | Required | 30/min per user | List Goals with filters |
+| `POST` | `/goals/:id/cancel` | Required | 10/min per user | Cancel Goal |
+| `POST` | `/goals/:id/approve` | Required + role | 20/min per user | Approve step |
+| `POST` | `/goals/:id/deny` | Required + role | 20/min per user | Deny step |
+| `GET` | `/tools` | Required | 60/min per user | List tools |
+| `GET` | `/tools/:name` | Required | 60/min per user | Tool descriptor |
+| `GET` | `/health` | Public | — | Health check |
+| `WS` | `/ws` | Required (token in query) | — | Streaming |
 
-### Autenticación
+### Authentication
 
-CaS delega autenticación en un **IdP corporativo** (Keycloak, Okta, Azure AD, Auth0) mediante el flujo **OIDC**:
+CaS delegates authentication to a **corporate IdP** (Keycloak, Okta, Azure AD, Auth0) using the **OIDC** flow:
 
-- **Web UI**: Authorization Code Flow + PKCE. El usuario redirige al IdP, recibe un authorization code, el backend lo canjea por tokens.
-- **CLI TUI / Desktop App**: Device Authorization Grant (RFC 8628). El CLI muestra un código que el usuario verifica en su navegador.
-- **Slack / Teams Adapters**: Verificación de firmas HMAC del proveedor + token de servicio interno.
-- **Service-to-service**: Client Credentials Grant. Los runners se autentican con client ID + client secret.
+- **Web UI**: Authorization Code Flow + PKCE. The user is redirected to the IdP, receives an authorization code, the backend exchanges it for tokens.
+- **CLI TUI / Desktop App**: Device Authorization Grant (RFC 8628). The CLI shows a code that the user verifies in their browser.
+- **Slack / Teams Adapters**: HMAC signature verification from the provider + internal service token.
+- **Service-to-service**: Client Credentials Grant. Runners authenticate with client ID + client secret.
 
-**Estructura del JWT:**
+**JWT Structure:**
 
 ```json
 {
   "sub": "user_abc123",
-  "email": "jdoe@empresa.com",
+  "email": "jdoe@company.com",
   "roles": ["admin", "devops"],
   "groups": ["sre-team", "finance-approvers"],
   "iat": 1717200000,
   "exp": 1717203600,
-  "iss": "https://idp.empresa.com/auth/realms/cas"
+  "iss": "https://idp.company.com/auth/realms/cas"
 }
 ```
 
 ### Rate Limiting
 
-Configuración por defecto (sobrescribible por política corporativa):
+Default configuration (overridable by corporate policy):
 
-| Nivel | Goals/min | Reads/min | Auth failures/h |
+| Level | Goals/min | Reads/min | Auth failures/h |
 |---|---|---|---|
 | Free tier | 5 | 30 | 5 |
 | Developer | 20 | 120 | 10 |
 | Admin | 50 | 300 | 20 |
 | Service account | 200 | 1000 | — |
 
-El rate limiting se implementa con **Redis + sliding window** para precisión en entornos distribuidos.
+Rate limiting is implemented with **Redis + sliding window** for precision in distributed environments.
 
 ### WebSocket Management
 
-El Gateway mantiene conexiones WebSocket long-lived para streaming de progreso.
+The Gateway maintains long-lived WebSocket connections for progress streaming.
 
-**Ciclo de vida:**
+**Lifecycle:**
 
 ```
 Client                     Gateway
   │                          │
   │──── WS /ws?token=... ───▶│
-  │                          │──── Verifica token JWT
+  │                          │──── Verifies JWT token
   │◀─── 101 Switching ──────│
   │                          │
   │──── {"subscribe":       │
   │       "goal_abc123"} ───▶│
-  │                          │──── Suscribe a eventos del Goal
+  │                          │──── Subscribes to Goal events
   │◀─── {"type":"progress", │
   │       "step":"1/4",     │
   │       "status":"running"}│
   │◀─── {"type":"log",      │
   │       "data":"Query OK"}│
   │                          │
-  │──── {"type":"ping"} ────▶│  (heartbeat cada 30s)
+  │──── {"type":"ping"} ────▶│  (heartbeat every 30s)
   │◀─── {"type":"pong"} ────│
   │                          │
   │◀─── {"type":"completed",│
   │       "result":"..."}    │
 ```
 
-**Reconexión**: Si el cliente se desconecta, el Gateway mantiene la suscripción activa por 5 minutos. Al reconectar con el mismo `sessionId`, el Gateway reenvía el estado actual y los eventos no entregados.
+**Reconnection**: If the client disconnects, the Gateway keeps the subscription active for 5 minutes. Upon reconnecting with the same `sessionId`, the Gateway resends the current state and any undelivered events.
 
-### Validación de Entrada
+### Input Validation
 
-Cada request es validado contra un schema antes de llegar al Orchestrator:
+Each request is validated against a schema before reaching the Orchestrator:
 
 ```typescript
 const goalSchema = {
@@ -137,7 +137,7 @@ const goalSchema = {
       type: 'string',
       minLength: 10,
       maxLength: 2000,
-      description: 'Descripción del objetivo de alto nivel'
+      description: 'Description of the high-level objective'
     },
     autonomyMode: {
       type: 'string',
@@ -157,44 +157,44 @@ const goalSchema = {
 
 ## Orchestrator
 
-El Orchestrator es el **núcleo del Control Plane**. Gestiona el ciclo de vida completo de cada Goal desde que llega hasta que se completa, falla o se cancela.
+The Orchestrator is the **core of the Control Plane**. It manages the full lifecycle of each Goal from arrival to completion, failure, or cancellation.
 
-### Ciclo de Vida de un Goal
+### Goal Lifecycle
 
 ```
                           ┌──────────────┐
                           │   PENDING    │
-                          │ Goal creado,  │
-                          │ sin procesar  │
+                          │ Goal created, │
+                          │ unprocessed   │
                           └──────┬───────┘
-                                 │ Orchestrator asigna al Planner
+                                 │ Orchestrator assigns to Planner
                                  ▼
                           ┌──────────────┐
                           │  PLANNING    │
                           │ Planner      │
-                          │ generando    │
-                          │ DAG de tareas│
+                          │ generating   │
+                          │ DAG of tasks │
                           └──────┬───────┘
-                                 │ Plan generado + Policy evaluada
+                                 │ Plan generated + Policy evaluated
                                  ▼
                     ┌─────────────────────────┐
                     │       APPROVED           │
-                    │ Plan aceptado,           │
-                    │ listo para ejecutar      │
+                    │ Plan accepted,           │
+                    │ ready to execute         │
                     │                          │
-                    │ (Si alguna policy         │
-                    │  devolvió                 │
-                    │  REQUIRE_APPROVAL,        │
-                    │  espera input humano)     │
+                    │ (If a policy             │
+                    │  returned                │
+                    │  REQUIRE_APPROVAL,       │
+                    │  waits for human input)  │
                     └──────┬──────────────────┘
-                           │ Orchestrator publica primer job
+                           │ Orchestrator publishes first job
                            ▼
                     ┌─────────────────────────┐
                     │      IN_PROGRESS        │
-                    │ Jobs ejecutándose,      │
-                    │ DAG recorriéndose       │
+                    │ Jobs executing,         │
+                    │ DAG being traversed     │
                     │                         │
-                    │ Estado por step:        │
+                    │ Per-step state:         │
                     │ · pending               │
                     │ · running               │
                     │ · completed             │
@@ -206,39 +206,39 @@ El Orchestrator es el **núcleo del Control Plane**. Gestiona el ciclo de vida c
               ▼            ▼            ▼
      ┌────────────┐ ┌────────────┐ ┌────────────┐
      │ COMPLETED  │ │  FAILED    │ │ CANCELLED  │
-     │ Todos los  │ │ Algún step │ │ Usuario    │
-     │ steps OK   │ │ falló sin  │ │ canceló    │
-     │            │ │ retry      │ │            │
+     │ All steps  │ │ A step     │ │ User       │
+     │ OK         │ │ failed     │ │ cancelled  │
+     │            │ │ no retry   │ │            │
      └────────────┘ └────────────┘ └────────────┘
 ```
 
-### State Machine (Detalle de Transiciones)
+### State Machine (Transition Detail)
 
-| Estado Actual | Evento | Siguiente Estado | Acción |
+| Current State | Event | Next State | Action |
 |---|---|---|---|
-| PENDING | start_planning | PLANNING | Invocar Planner |
-| PLANNING | plan_ready | APPROVED | Evaluar políticas por step |
-| PLANNING | plan_failed | FAILED | Notificar error de planificación |
-| APPROVED | all_auto | IN_PROGRESS | Publicar jobs disponibles |
-| APPROVED | waiting_approval | APPROVED | Bloquear hasta aprobación humana |
-| APPROVED | approved | IN_PROGRESS | Continuar con step aprobado |
-| APPROVED | denied | FAILED | Step denegado → Goal fallido |
-| IN_PROGRESS | step_completed | IN_PROGRESS | Avanzar DAG, publicar siguiente job |
-| IN_PROGRESS | all_completed | COMPLETED | Escribir memoria, notificar usuario |
-| IN_PROGRESS | step_failed_no_retry | FAILED | Notificar error |
-| IN_PROGRESS | step_failed_retry | IN_PROGRESS | Reintentar con backoff |
-| IN_PROGRESS | cancelled | CANCELLED | Cancelar jobs en cola, cleanup |
-| ANY | cancel_requested | CANCELLED | Cancelación manual del usuario |
+| PENDING | start_planning | PLANNING | Invoke Planner |
+| PLANNING | plan_ready | APPROVED | Evaluate policies per step |
+| PLANNING | plan_failed | FAILED | Notify planning error |
+| APPROVED | all_auto | IN_PROGRESS | Publish available jobs |
+| APPROVED | waiting_approval | APPROVED | Block until human approval |
+| APPROVED | approved | IN_PROGRESS | Continue with approved step |
+| APPROVED | denied | FAILED | Step denied → Goal failed |
+| IN_PROGRESS | step_completed | IN_PROGRESS | Advance DAG, publish next job |
+| IN_PROGRESS | all_completed | COMPLETED | Write memory, notify user |
+| IN_PROGRESS | step_failed_no_retry | FAILED | Notify error |
+| IN_PROGRESS | step_failed_retry | IN_PROGRESS | Retry with backoff |
+| IN_PROGRESS | cancelled | CANCELLED | Cancel queued jobs, cleanup |
+| ANY | cancel_requested | CANCELLED | Manual user cancellation |
 
-### Plan como DAG de Tareas
+### Plan as DAG of Tasks
 
-El plan generado por el Planner es un **grafo acíclico dirigido (DAG)** donde:
+The plan generated by the Planner is a **directed acyclic graph (DAG)** where:
 
-- **Nodos (steps)**: Unidades atómicas de trabajo, cada una mapeada a una tool del registry
-- **Aristas (edges)**: Dependencias entre steps. Un step no comienza hasta que todos sus predecesores estén completos
-- **Peso**: Cada step tiene un timeout y prioridad
+- **Nodes (steps)**: Atomic units of work, each mapped to a tool from the registry
+- **Edges**: Dependencies between steps. A step does not start until all its predecessors are complete
+- **Weight**: Each step has a timeout and priority
 
-**Ejemplo de DAG:**
+**DAG Example:**
 
 ```
         ┌──────────┐
@@ -255,11 +255,11 @@ El plan generado por el Planner es un **grafo acíclico dirigido (DAG)** donde:
         └──────────┘    └──────────┘
 ```
 
-**Ejecución**: El Plan Executor hace un topological sort del DAG. Los steps sin dependencias pendientes se ejecutan en paralelo. Cuando un step se completa, se evalúa qué steps dependientes pueden comenzar.
+**Execution**: The Plan Executor does a topological sort of the DAG. Steps without pending dependencies execute in parallel. When a step completes, it evaluates which dependent steps can start.
 
-### Publicación de Jobs
+### Job Publication
 
-Cuando un step está listo para ejecutarse, el Job Publisher construye un mensaje de job:
+When a step is ready to execute, the Job Publisher builds a job message:
 
 ```json
 {
@@ -269,7 +269,7 @@ Cuando un step está listo para ejecutarse, el Job Publisher construye un mensaj
   "tool": "run_sql_query",
   "version": "1.0.0",
   "parameters": {
-    "query": "SELECT * FROM revenue WHERE month = 'mayo-2026'",
+    "query": "SELECT * FROM revenue WHERE month = 'may-2026'",
     "database": "reporting"
   },
   "credentialsRef": "vault://db/reporting/readonly",
@@ -285,66 +285,66 @@ Cuando un step está listo para ejecutarse, el Job Publisher construye un mensaj
 }
 ```
 
-Este mensaje se publica en la cola de mensajes (topic: `jobs`). El runner correspondiente lo consume cuando esté disponible.
+This message is published to the message queue (topic: `jobs`). The corresponding runner consumes it when available.
 
-### Recepción de Eventos
+### Event Reception
 
-Los runners publican eventos en la cola de mensajes (topic: `events`). El Orchestrator los consume y procesa:
+Runners publish events on the message queue (topic: `events`). The Orchestrator consumes and processes them:
 
-| Evento | Payload | Acción del Orchestrator |
+| Event | Payload | Orchestrator Action |
 |---|---|---|
-| `job.started` | `{jobId, startedAt}` | Actualizar step state → running |
-| `job.progress` | `{jobId, percent, message}` | Reenviar al cliente vía WebSocket |
-| `job.log` | `{jobId, stream: stdout/stderr, data}` | Almacenar en buffer, reenviar si hay cliente conectado |
-| `job.completed` | `{jobId, result, artifacts, duration}` | Step completed, avanzar DAG |
-| `job.failed` | `{jobId, error, exitCode}` | Intentar retry o marcar Goal como FAILED |
-| `job.timeout` | `{jobId}` | Kill + cleanup, marcar como FAILED |
+| `job.started` | `{jobId, startedAt}` | Update step state → running |
+| `job.progress` | `{jobId, percent, message}` | Forward to client via WebSocket |
+| `job.log` | `{jobId, stream: stdout/stderr, data}` | Store in buffer, forward if client connected |
+| `job.completed` | `{jobId, result, artifacts, duration}` | Step completed, advance DAG |
+| `job.failed` | `{jobId, error, exitCode}` | Attempt retry or mark Goal as FAILED |
+| `job.timeout` | `{jobId}` | Kill + cleanup, mark as FAILED |
 
-### Escritura de Memoria
+### Memory Writing
 
-Cuando un Goal se completa exitosamente, el Orchestrator inicia un proceso de **consolidación de memoria**:
+When a Goal completes successfully, the Orchestrator initiates a **memory consolidation** process:
 
-1. Envía los logs, resultados y artefactos del Goal a un LLM para resumir
-2. El LLM genera un `MemoryItem` estructurado con:
-   - Resumen de lo que se hizo
-   - Decisiones arquitectónicas tomadas
-   - Artefactos generados (rutas, URLs)
-   - Tags de dominio y proyecto
-3. El `MemoryItem` se persiste en Org Store y Project Store
-4. Si el Goal produjo decisiones, se actualiza el `CHANGELOG.md` del proyecto
+1. Sends the logs, results, and artifacts of the Goal to an LLM for summarization
+2. The LLM generates a structured `MemoryItem` with:
+   - Summary of what was done
+   - Architectural decisions made
+   - Generated artifacts (paths, URLs)
+   - Domain and project tags
+3. The `MemoryItem` is persisted in Org Store and Project Store
+4. If the Goal produced decisions, the project's `CHANGELOG.md` is updated
 
 ---
 
 ## Planner
 
-El Planner es el componente que **traduce lenguaje natural a planes ejecutables**. Es la interfaz entre el lenguaje humano y la máquina de estados del Orchestrator.
+The Planner is the component that **translates natural language into executable plans**. It is the interface between human language and the Orchestrator's state machine.
 
 ### Prompt Builder
 
-Construye el prompt del sistema con contexto rico:
+Builds the system prompt with rich context:
 
 ```
-System: Eres un planificador de tareas para CaS (CLI as a Service).
-Tu trabajo es descomponer un Goal de alto nivel en un DAG de tareas.
+System: You are a task planner for CaS (CLI as a Service).
+Your job is to decompose a high-level Goal into a DAG of tasks.
 
-Contexto de organización:
-- Nombre: EmpresaTech
-- Dominio: devops
-- Entorno: staging
-- Políticas activas: modo semi-autónomo
+Organization context:
+- Name: CompanyTech
+- Domain: devops
+- Environment: staging
+- Active policies: semi-autonomous mode
 
-Herramientas disponibles (top 5 de 20):
-1. run_shell (v2.1.0) - Ejecuta comandos shell en contenedor
-2. kubectl_apply (v1.0.0) - Aplica manifiestos Kubernetes
-3. db_migrate (v3.2.1) - Ejecuta migraciones de base de datos
-4. terraform_plan (v1.5.0) - Planifica cambios de infraestructura
-5. helm_deploy (v2.0.0) - Despliega charts Helm
+Available tools (top 5 of 20):
+1. run_shell (v2.1.0) - Executes shell commands in container
+2. kubectl_apply (v1.0.0) - Applies Kubernetes manifests
+3. db_migrate (v3.2.1) - Executes database migrations
+4. terraform_plan (v1.5.0) - Plans infrastructure changes
+5. helm_deploy (v2.0.0) - Deploys Helm charts
 
-Memoria de proyecto relevante:
-- Última migración DB: usó `db_migrate` con rollback automático
-- Convención: usar `terraform_plan` antes de cualquier `kubectl_apply`
+Relevant project memory:
+- Last DB migration: used `db_migrate` with automatic rollback
+- Convention: use `terraform_plan` before any `kubectl_apply`
 
-Formato de output (JSON):
+Output format (JSON):
 {
   "steps": [
     {
@@ -352,17 +352,17 @@ Formato de output (JSON):
       "tool": "tool_name",
       "parameters": { ... },
       "depends_on": [],
-      "description": "Qué hace este paso"
+      "description": "What this step does"
     }
   ]
 }
 
-Goal del usuario: [GOAL TEXT]
+User's Goal: [GOAL TEXT]
 ```
 
-### Integración Multi-LLM
+### Multi-LLM Integration
 
-El Planner abstrae la elección del LLM mediante una interfaz de proveedor:
+The Planner abstracts the LLM choice through a provider interface:
 
 ```typescript
 interface PlannerProvider {
@@ -375,30 +375,30 @@ interface PlannerProvider {
   ): Promise<PlannerResponse>;
 }
 
-// Proveedores implementados:
+// Implemented providers:
 class OpenAIProvider implements PlannerProvider { ... }
 class AnthropicProvider implements PlannerProvider { ... }
 class OllamaProvider implements PlannerProvider { ... }
 ```
 
-**Selección de proveedor**: Configurable por organización. Default: intentar OpenAI GPT-4o, fallback a Anthropic Claude 4 Opus, fallback a Ollama local.
+**Provider selection**: Configurable per organization. Default: try OpenAI GPT-4o, fallback to Anthropic Claude 4 Opus, fallback to local Ollama.
 
-**Parámetros por proveedor:**
+**Per-provider parameters:**
 
-| Provider | Modelo Default | Max Tokens | Temperatura |
+| Provider | Default Model | Max Tokens | Temperature |
 |---|---|---|---|
 | OpenAI | gpt-4o | 4096 | 0.2 |
 | Anthropic | claude-opus-4 | 4096 | 0.3 |
 | Ollama | deepseek-coder-v2 | 4096 | 0.1 |
 
-### Output Normalizado
+### Normalized Output
 
-El LLM debe retornar un JSON con la siguiente estructura:
+The LLM must return JSON with the following structure:
 
 ```json
 {
   "plan_id": "plan_789",
-  "goal_summary": "Migrar base de datos de staging a producción",
+  "goal_summary": "Migrate database from staging to production",
   "domain": "devops",
   "risk_level": "high",
   "steps": [
@@ -410,7 +410,7 @@ El LLM debe retornar un JSON con la siguiente estructura:
         "command": "pg_dump -h staging-db -U admin --schema-only > /tmp/schema.sql"
       },
       "depends_on": [],
-      "description": "Backup del schema de staging",
+      "description": "Backup staging schema",
       "timeout_seconds": 120
     },
     {
@@ -423,46 +423,46 @@ El LLM debe retornar un JSON con la siguiente estructura:
         "source_file": "/tmp/schema.sql"
       },
       "depends_on": ["step_1"],
-      "description": "Ejecutar migraciones en producción",
+      "description": "Run migrations in production",
       "timeout_seconds": 300
     }
   ]
 }
 ```
 
-**Validación post-parsing:**
+**Post-parsing validation:**
 
-1. El JSON debe ser parseable (si no, reintentar con el LLM con feedback del error)
-2. Todos los `tool` referenciados deben existir en el Tools Registry
-3. Todos los parámetros requeridos deben estar presentes
-4. Las dependencias (`depends_on`) deben formar un DAG válido (sin ciclos)
-5. Cada step debe tener un `id` único dentro del plan
+1. The JSON must be parseable (if not, retry with the LLM with error feedback)
+2. All referenced `tool` values must exist in the Tools Registry
+3. All required parameters must be present
+4. Dependencies (`depends_on`) must form a valid DAG (no cycles)
+5. Each step must have a unique `id` within the plan
 
 ### Plan Cache
 
-Para evitar llamadas LLM innecesarias, el Planner mantiene un cache de planes:
+To avoid unnecessary LLM calls, the Planner maintains a plan cache:
 
 ```typescript
 interface CacheEntry {
-  goalEmbedding: number[];   // embedding(1536) del Goal original
+  goalEmbedding: number[];   // embedding(1536) of the original Goal
   plan: Plan;
   createdAt: Date;
-  ttl: number;               // segundos
+  ttl: number;               // seconds
   hitCount: number;
 }
 
-// Estrategia de cache:
-// 1. Calcular embedding del nuevo Goal
-// 2. Buscar en cache por cosine similarity > 0.92
-// 3. Si hay match, reusar plan (validando que tools sigan disponibles)
-// 4. Si no hay match, llamar al LLM
+// Cache strategy:
+// 1. Calculate embedding of the new Goal
+// 2. Search cache by cosine similarity > 0.92
+// 3. If match, reuse plan (validating tools are still available)
+// 4. If no match, call the LLM
 ```
 
 ### Fallback
 
-Si el LLM no produce un plan válido después de 3 intentos:
+If the LLM does not produce a valid plan after 3 attempts:
 
-1. **Plan template**: Buscar en una base de templates por dominio y tipo de Goal
+1. **Plan template**: Search a template database by domain and Goal type
    ```yaml
    templates:
      - domain: devops
@@ -471,26 +471,26 @@ Si el LLM no produce un plan válido después de 3 intentos:
          - tool: run_shell, command: pg_dump...
          - tool: db_migrate...
    ```
-2. **Plan manual**: Retornar al usuario con un mensaje explicativo y permitir que defina los steps manualmente a través de la CLI
+2. **Manual plan**: Return to the user with an explanatory message and allow them to define steps manually through the CLI
 
 ---
 
 ## Policy Engine
 
-El Policy Engine es el **guardián del sistema**. Cada operación propuesta es evaluada contra reglas definidas en **OPA/Rego** antes de ser ejecutada.
+The Policy Engine is the **guardian of the system**. Every proposed operation is evaluated against rules defined in **OPA/Rego** before being executed.
 
-### Integración OPA/Rego
+### OPA/Rego Integration
 
-CaS soporta dos modos de integración:
+CaS supports two integration modes:
 
-| Modo | Descripción | Ventaja |
+| Mode | Description | Advantage |
 |---|---|---|
-| **Sidecar** | Proceso OPA por instancia del Orchestrator | Aislamiento, baja latencia |
-| **Servidor Central** | Servidor OPA compartido para todo el cluster | Políticas unificadas, fácil actualización |
+| **Sidecar** | OPA process per Orchestrator instance | Isolation, low latency |
+| **Central Server** | Shared OPA server for the entire cluster | Unified policies, easy updates |
 
-Default: Sidecar para baja latencia (< 2ms por evaluación).
+Default: Sidecar for low latency (< 2ms per evaluation).
 
-**API de evaluación:**
+**Evaluation API:**
 
 ```
 POST /v1/data/cas/policies/allow
@@ -513,12 +513,12 @@ Response: {
   "result": {
     "allow": false,
     "require_approval": true,
-    "reason": "Escritura en producción requiere aprobación"
+    "reason": "Write to production requires approval"
   }
 }
 ```
 
-### Estructura de Reglas Regio
+### Rego Rules Structure
 
 ```rego
 package cas.policies
@@ -530,30 +530,30 @@ default allow := false
 default require_approval := false
 
 # ==========================================
-# Reglas por Rol
+# Role-based Rules
 # ==========================================
 
-# Admin puede todo en dev y staging
+# Admin can do everything in dev and staging
 allow if {
     input.role == "admin"
     input.environment in ["dev", "staging"]
 }
 
-# Developer solo lectura en prod
+# Developer read-only in prod
 allow if {
     input.role == "dev"
     input.environment == "prod"
     input.tool.type == "read"
 }
 
-# Developer necesita aprobación para escribir en prod
+# Developer needs approval to write in prod
 require_approval if {
     input.role == "dev"
     input.environment == "prod"
     input.tool.type in ["write", "execute"]
 }
 
-# Analyst solo lectura en finance
+# Analyst read-only in finance
 allow if {
     input.role == "analyst"
     input.domain == "finance"
@@ -561,10 +561,10 @@ allow if {
 }
 
 # ==========================================
-# Reglas por Entorno
+# Environment-based Rules
 # ==========================================
 
-# En producción, escritura siempre requiere aprobación
+# In production, writing always requires approval
 require_approval if {
     input.environment == "prod"
     input.tool.type in ["write", "execute"]
@@ -572,31 +572,31 @@ require_approval if {
 }
 
 # ==========================================
-# Reglas por Nivel de Riesgo
+# Risk-level Rules
 # ==========================================
 
-# Riesgo alto siempre requiere aprobación en modo semi-autónomo
+# High risk always requires approval in semi-autonomous mode
 require_approval if {
     input.tool.risk == "high"
     input.autonomy_mode == "semi-autonomous"
 }
 
-# Riesgo bajo siempre permitido en modo semi-autónomo
+# Low risk always allowed in semi-autonomous mode
 allow if {
     input.tool.risk == "low"
     input.autonomy_mode == "semi-autonomous"
 }
 
 # ==========================================
-# Reglas de Denegación Explícita
+# Explicit Denial Rules
 # ==========================================
 
-# Denegar si la tool no está aprobada para el dominio
+# Deny if the tool is not approved for the domain
 deny if {
     not data.tools_by_domain[input.domain][input.tool.name]
 }
 
-# Denegar ejecución en prod en horario no laboral sin aprobación especial
+# Deny execution in prod outside business hours without special approval
 deny if {
     input.environment == "prod"
     input.tool.type == "execute"
@@ -605,109 +605,109 @@ deny if {
 }
 ```
 
-### Input del Policy Engine
+### Policy Engine Input
 
-| Campo | Tipo | Descripción | Ejemplo |
+| Field | Type | Description | Example |
 |---|---|---|---|
-| `user` | string | ID del usuario | `jdoe` |
-| `role` | string | Rol del usuario | `dev`, `admin`, `analyst` |
-| `domain` | string | Dominio de negocio | `devops`, `finance`, `marketing` |
-| `environment` | string | Entorno objetivo | `dev`, `staging`, `prod` |
-| `tool.name` | string | Nombre de la tool | `kubectl_apply` |
-| `tool.type` | string | Tipo de operación | `read`, `write`, `execute` |
-| `tool.risk` | string | Nivel de riesgo | `low`, `medium`, `high` |
-| `autonomy_mode` | string | Modo de autonomía del Goal | `consultive`, `semi-autonomous`, `autonomous` |
-| `goal_risk_level` | string | Riesgo calculado del Goal completo | `low`, `medium`, `high` |
+| `user` | string | User ID | `jdoe` |
+| `role` | string | User role | `dev`, `admin`, `analyst` |
+| `domain` | string | Business domain | `devops`, `finance`, `marketing` |
+| `environment` | string | Target environment | `dev`, `staging`, `prod` |
+| `tool.name` | string | Tool name | `kubectl_apply` |
+| `tool.type` | string | Operation type | `read`, `write`, `execute` |
+| `tool.risk` | string | Risk level | `low`, `medium`, `high` |
+| `autonomy_mode` | string | Goal's autonomy mode | `consultive`, `semi-autonomous`, `autonomous` |
+| `goal_risk_level` | string | Calculated risk of the entire Goal | `low`, `medium`, `high` |
 
-### Output del Policy Engine
+### Policy Engine Output
 
-| Decisión | Significado | Acción del Orchestrator |
+| Decision | Meaning | Orchestrator Action |
 |---|---|---|
-| `ALLOW` | Operación permitida | Publicar job en la cola |
-| `DENY` | Operación denegada | Marcas step como FAILED con razón |
-| `REQUIRE_APPROVAL` | Requiere aprobación humana | Pausar el plan, notificar al usuario y a los aprobadores |
+| `ALLOW` | Operation permitted | Publish job to queue |
+| `DENY` | Operation denied | Mark step as FAILED with reason |
+| `REQUIRE_APPROVAL` | Requires human approval | Pause plan, notify user and approvers |
 
-### Modos de Autonomía en Detalle
+### Autonomy Modes in Detail
 
-**Consultivo:**
+**Consultive:**
 
 ```
-Para CADA step del plan:
+For EACH step in the plan:
   if tool.type == "read" → ALLOW
   else → REQUIRE_APPROVAL
 
-El Orchestrator:
-  1. Pausa el plan después de planificar
-  2. Muestra cada step al usuario con sus parámetros
-  3. Espera aprobación explícita para continuar
-  4. Si se deniega un step → Goal FAILED
-  5. Si se aprueba → step ejecutado, luego pausa en el siguiente
+The Orchestrator:
+  1. Pauses the plan after planning
+  2. Shows each step to the user with its parameters
+  3. Waits for explicit approval to continue
+  4. If a step is denied → Goal FAILED
+  5. If approved → step executes, then pauses at the next one
 ```
 
-**Semi-autónomo (default):**
+**Semi-autonomous (default):**
 
 ```
-Para CADA step del plan:
+For EACH step in the plan:
   if tool.risk == "low" → ALLOW
   if tool.risk == "medium" AND environment != "prod" → ALLOW
   if tool.risk == "high" OR environment == "prod" → REQUIRE_APPROVAL
 
-El Orchestrator:
-  1. Ejecuta automáticamente steps de bajo riesgo
-  2. Cuando encuentra un REQUIRE_APPROVAL, pausa y notifica
-  3. El usuario puede aprobar en lote o step por step
-  4. Continúa automáticamente después de aprobación
+The Orchestrator:
+  1. Automatically executes low-risk steps
+  2. When it encounters a REQUIRE_APPROVAL, pauses and notifies
+  3. The user can approve in batch or step by step
+  4. Continues automatically after approval
 ```
 
-**Autónomo:**
+**Autonomous:**
 
 ```
-Para CADA step del plan:
-  if operación dentro del sandbox → ALLOW
-  if operación fuera del sandbox → evalúa política normal
+For EACH step in the plan:
+  if operation is inside the sandbox → ALLOW
+  if operation is outside the sandbox → evaluate normal policy
 
-El Orchestrator:
-  1. Ejecuta todo automáticamente
-  2. Solo pide aprobación si el step requiere acceso fuera del sandbox
-  3. Útil para CI/CD y entornos aislados
+The Orchestrator:
+  1. Executes everything automatically
+  2. Only asks for approval if the step requires access outside the sandbox
+  3. Useful for CI/CD and isolated environments
 ```
 
 ---
 
 ## Tools Registry
 
-El Tools Registry es el **catálogo de capacidades** del sistema. Cada tool es una función atómica que puede ejecutarse en un runner específico.
+The Tools Registry is the **capability catalog** of the system. Each tool is an atomic function that can execute on a specific runner.
 
-### Descriptor tool.yaml
+### tool.yaml Descriptor
 
-Cada tool se define con un archivo YAML:
+Each tool is defined with a YAML file:
 
 ```yaml
 name: run_sql_query
 version: 1.0.0
-description: Ejecuta una consulta SQL en una base de datos corporativa
+description: Executes a SQL query on a corporate database
 domain: finance
 author: admin@sre-team
 
-# Runner que ejecutará esta tool
+# Runner that will execute this tool
 runner:
   type: data-runner
   image: cas/data-runner:1.2.0
   entrypoint: python /runner/run_sql.py
 
-# Parámetros que acepta
+# Parameters it accepts
 parameters:
   - name: query
     type: string
-    description: Consulta SQL a ejecutar. Solo SELECT permitido.
+    description: SQL query to execute. Only SELECT allowed.
     required: true
     sensitive: false
     validation:
       pattern: "^SELECT.*"
-      message: "Solo consultas SELECT están permitidas"
+      message: "Only SELECT queries are allowed"
   - name: database
     type: string
-    description: Base de datos destino
+    description: Target database
     required: true
     enum:
       - staging-finance
@@ -715,14 +715,14 @@ parameters:
       - reporting
   - name: limit
     type: integer
-    description: Número máximo de filas
+    description: Maximum number of rows
     required: false
     default: 100
     validation:
       min: 1
       max: 10000
 
-# Perfil de seguridad
+# Security profile
 security:
   network: outbound-only
   resources:
@@ -732,7 +732,7 @@ security:
   risk: read
   sandbox: true
 
-# Metadatos del contrato
+# Contract metadata
 contract:
   output:
     type: file
@@ -740,65 +740,65 @@ contract:
     max_size_mb: 50
   error_codes:
     - code: ERR_QUERY_TIMEOUT
-      description: La consulta excedió el tiempo máximo
+      description: Query exceeded maximum time
     - code: ERR_INVALID_QUERY
-      description: La consulta tiene errores de sintaxis
+      description: Query has syntax errors
     - code: ERR_DB_CONNECTION
-      description: No se pudo conectar a la base de datos
+      description: Could not connect to the database
 ```
 
-### API del Registry
+### Registry API
 
-| Método | Ruta | Descripción | Query Params |
+| Method | Path | Description | Query Params |
 |---|---|---|---|
-| `GET` | `/tools` | Listar todas las tools | `domain`, `runner`, `risk`, `query` (búsqueda textual) |
-| `GET` | `/tools/:name` | Última versión de una tool | — |
-| `GET` | `/tools/:name/:version` | Versión específica | — |
-| `POST` | `/tools` | Registrar nueva tool (admin) | — |
-| `PUT` | `/tools/:name/:version` | Actualizar tool (admin) | — |
-| `DELETE` | `/tools/:name/:version` | Deprecar tool (admin) | — |
+| `GET` | `/tools` | List all tools | `domain`, `runner`, `risk`, `query` (text search) |
+| `GET` | `/tools/:name` | Latest version of a tool | — |
+| `GET` | `/tools/:name/:version` | Specific version | — |
+| `POST` | `/tools` | Register new tool (admin) | — |
+| `PUT` | `/tools/:name/:version` | Update tool (admin) | — |
+| `DELETE` | `/tools/:name/:version` | Deprecate tool (admin) | — |
 
-### Versionado Semántico
+### Semantic Versioning
 
-| Cambio | Ejemplo | Versión |
+| Change | Example | Version |
 |---|---|---|
-| Bug fix sin cambios de interfaz | Corrección de timeout | `1.0.0` → `1.0.1` |
-| Nueva funcionalidad backward-compatible | Nuevo parámetro opcional | `1.0.0` → `1.1.0` |
-| Cambio rompiente | Parámetro requerido eliminado | `1.0.0` → `2.0.0` |
-| Cambio de seguridad | Perfil de red más restrictivo | `1.0.0` → `2.0.0` |
+| Bug fix with no interface changes | Timeout fix | `1.0.0` → `1.0.1` |
+| New backward-compatible functionality | New optional parameter | `1.0.0` → `1.1.0` |
+| Breaking change | Required parameter removed | `1.0.0` → `2.0.0` |
+| Security change | More restrictive network profile | `1.0.0` → `2.0.0` |
 
-Las tools versionadas conviven en el registry. Los planes existentes que referencian `tool@1.0.0` siguen funcionando aunque exista `tool@2.0.0`.
+Versioned tools coexist in the registry. Existing plans referencing `tool@1.0.0` continue working even if `tool@2.0.0` exists.
 
-### Validación al Registrar
+### Registration Validation
 
-Al registrar o actualizar una tool, el Registry valida:
+When registering or updating a tool, the Registry validates:
 
-1. **Schema de parámetros**: Tipos correctos, valores por defecto, enumeraciones válidas
-2. **Seguridad**: Perfil de red válido, recursos dentro de límites, timeout razonable
-3. **Runner**: El runner type existe y la imagen está disponible
-4. **Firma de integridad**: El registro debe estar firmado con una clave de deploy
-5. **No duplicados**: No puede haber dos tools con el mismo `name@version`
+1. **Parameter schema**: Correct types, default values, valid enums
+2. **Security**: Valid network profile, resources within limits, reasonable timeout
+3. **Runner**: The runner type exists and the image is available
+4. **Integrity signature**: The registration must be signed with a deploy key
+5. **No duplicates**: No two tools with the same `name@version`
 
 ---
 
-## Consideraciones de Rendimiento
+## Performance Considerations
 
-### Objetivos de Latencia
+### Latency Targets
 
-| Operación | Latencia Objetivo | P99 Máximo |
+| Operation | Target Latency | P99 Maximum |
 |---|---|---|
-| Evaluación de política (OPA) | < 2ms | < 10ms |
-| Planificación con LLM | < 5s | < 15s |
-| Validación de schema | < 1ms | < 5ms |
-| Publicación de job en cola | < 5ms | < 20ms |
-| Procesamiento de evento de runner | < 10ms | < 50ms |
+| Policy evaluation (OPA) | < 2ms | < 10ms |
+| LLM planning | < 5s | < 15s |
+| Schema validation | < 1ms | < 5ms |
+| Job queue publication | < 5ms | < 20ms |
+| Runner event processing | < 10ms | < 50ms |
 | Health check | < 50ms | < 200ms |
 
 ### Throughput
 
-El Control Plane está diseñado para manejar **decenas de Goals concurrentes** por instancia:
+The Control Plane is designed to handle **tens of concurrent Goals** per instance:
 
-| Componente | Throughput Estimado | Cuello de Botella |
+| Component | Estimated Throughput | Bottleneck |
 |---|---|---|
 | API Gateway | 1000 req/s | Rate limiting + Redis |
 | Orchestrator | 50 goals/s | Redis state updates |
@@ -806,20 +806,20 @@ El Control Plane está diseñado para manejar **decenas de Goals concurrentes** 
 | Policy Engine | 10000 eval/s | OPA sidecar |
 | Tools Registry | 500 queries/s | PostgreSQL reads |
 
-### Estrategia de Escalado
+### Scaling Strategy
 
-- **API Gateway**: Horizontal puro detrás de load balancer. Stateless.
-- **Orchestrator**: Horizontal con Redis compartido para state. Cada instancia maneja un subconjunto de Goals (sharding por goalId hash).
-- **Planner**: Horizontal, stateless. Cache distribuido en Redis.
-- **Policy Engine**: Sidecar por instancia de Orchestrator. Políticas cargadas desde bundle OPA.
-- **Tools Registry**: Horizontal, stateless. Cache en Redis con invalidación por evento.
-
----
-
-## Siguiente
-
-Continúa con el **[Execution Plane](04-execution-plane.md)** , donde se detallan los runners, la message queue, la gestión de credenciales y el sandboxing de ejecución.
+- **API Gateway**: Pure horizontal behind load balancer. Stateless.
+- **Orchestrator**: Horizontal with shared Redis for state. Each instance handles a subset of Goals (sharding by goalId hash).
+- **Planner**: Horizontal, stateless. Distributed cache in Redis.
+- **Policy Engine**: Sidecar per Orchestrator instance. Policies loaded from OPA bundle.
+- **Tools Registry**: Horizontal, stateless. Cache in Redis with event-driven invalidation.
 
 ---
 
-*Última actualización: 2026-05-31*
+## Next
+
+Continue with the **[Execution Plane](04-execution-plane.md)** , which details the runners, message queue, credential management, and execution sandboxing.
+
+---
+
+*Last updated: 2026-05-31*

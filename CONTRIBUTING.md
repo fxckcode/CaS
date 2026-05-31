@@ -18,15 +18,15 @@ Welcome! This reference architecture project welcomes contributions via issues a
 
 ## Documentation Sync
 
-This project maintains bilingual documentation (Spanish primary, English secondary).
+This project maintains bilingual documentation (English primary, Spanish secondary).
 
 ### Updating Documentation
 
 When modifying documentation files, follow this workflow:
 
-1. **Always update Spanish first** — `README.md` and `*.md` files are the source of truth
-2. **Use LLM for English draft**:
-   - Recommended prompt: "Translate this to English (US). Preserve technical terms: orchestrator, planner, runner, policy engine, control plane, execution plane, memory stores, tools registry. Maintain exact markdown structure."
+1. **Always update English first** — `README.md` and `*.md` files are the source of truth
+2. **Use LLM for Spanish translation**:
+   - Recommended prompt: "Translate this to Spanish. Preserve technical terms in English: orchestrator, planner, runner, policy engine, control plane, execution plane, memory stores, tools registry. Maintain exact markdown structure."
    - Review the output for accuracy
 3. **Review technical terms** — ensure consistency with the list below
 4. **Validate structure** — sections must match exactly between language versions
@@ -34,12 +34,12 @@ When modifying documentation files, follow this workflow:
 
 ### File Naming Convention
 
-- **Spanish (primary)**: `filename.md`
-- **English (secondary)**: `filename.en.md`
+- **English (primary)**: `filename.md`
+- **Spanish (secondary)**: `filename.es.md`
 
 Examples:
-- `README.md` (Spanish) + `README.en.md` (English)
-- `docs/01-overview.md` (Spanish) + `docs/01-overview.en.md` (English)
+- `README.md` (English) + `README.es.md` (Spanish)
+- `docs/01-overview.md` (English) + `docs/01-overview.es.md` (Spanish)
 
 ### Technical Terms (Preserve in English)
 
@@ -71,7 +71,7 @@ Before committing bilingual changes, verify:
 ### Future: Automated Drift Detection
 
 When the project scales, we may add:
-- GitHub Action to detect `*.md` changes without corresponding `*.en.md` updates
+- GitHub Action to detect `*.md` changes without corresponding `*.es.md` updates
 - Documentation framework (VitePress/Docusaurus) with native i18n support
 
 **Trigger for migration**: 5+ international contributors or production-ready status

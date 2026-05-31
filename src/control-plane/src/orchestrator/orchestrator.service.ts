@@ -228,10 +228,10 @@ export class OrchestratorService {
     } else if (failed.size > 0) {
       // Partial completion — still mark as completed for MVP
       this.goalStore.update(goalId, { status: 'COMPLETED' });
-      this.eventEmitter.emit('goal.completed', { goalId, plan, partial: true });
+      this.eventEmitter.emit('goal.completed', { goal, plan, partial: true });
     } else {
       this.goalStore.update(goalId, { status: 'COMPLETED' });
-      this.eventEmitter.emit('goal.completed', { goalId, plan });
+      this.eventEmitter.emit('goal.completed', { goal, plan });
     }
   }
 }

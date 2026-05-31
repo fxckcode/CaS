@@ -1,88 +1,88 @@
-# CaS — Visión General
+# CaS — Overview
 
 **CLI as a Service Reference Architecture**
 
-- **Licencia:** MIT
-- **Repositorio:** [github.com/fxckcode/CaS](https://github.com/fxckcode/CaS)
-- **Última actualización:** 2026-05-31
+- **License:** MIT
+- **Repository:** [github.com/fxckcode/CaS](https://github.com/fxckcode/CaS)
+- **Last updated:** 2026-05-31
 
 ---
 
-## ¿Qué es CaS?
+## What is CaS?
 
-CaS (CLI as a Service) es una **arquitectura de referencia ejecutable** para construir sistemas corporativos donde agentes de inteligencia artificial ejecutan tareas reales sobre infraestructura organizacional. Es la evolución de los asistentes de línea de comandos locales hacia una plataforma gestionada, observable y gobernable que opera dentro de los límites de seguridad y cumplimiento normativo de una empresa.
+CaS (CLI as a Service) is an **executable reference architecture** for building corporate systems where artificial intelligence agents execute real tasks on organizational infrastructure. It is the evolution of local command-line assistants toward a managed, observable, and governable platform that operates within the security and compliance boundaries of an enterprise.
 
-En lugar de un chatbot que solo responde preguntas, CaS es un sistema donde los usuarios expresan **objetivos de alto nivel** —"migra la base de datos de staging a producción", "genera el reporte financiero mensual", "escala el servicio de pagos"— y la plataforma orquesta herramientas reales en infraestructura corporativa: shells en contenedores, pipelines CI/CD, consultas SQL, deploys a Kubernetes, y más.
-
----
-
-## El Problema
-
-Las organizaciones enfrentan cuatro brechas fundamentales al adoptar agentes de IA en operaciones técnicas:
-
-### 1. Chatbots responden pero no actúan
-
-Los asistentes conversacionales actuales (ChatGPT, Claude Web, Copilot Chat) entregan texto, código y explicaciones, pero no ejecutan nada. El usuario debe copiar, pegar y ejecutar manualmente. Esto limita drásticamente el valor real: el agente ve pero no toca.
-
-### 2. Agentes de IA sin control corporativo
-
-Las herramientas de agente local (Codex CLI, Claude Code) operan con permisos del usuario que las ejecuta. En una empresa, esto significa que un agente sin supervisión podría accidentalmente —o intencionalmente— eliminar recursos, exponer secretos o modificar configuraciones críticas. No existe un punto central de control, auditoría o policy enforcement.
-
-### 3. Falta de auditoría, políticas y aislamiento
-
-- **Auditoría:** No hay un registro inmutable de qué se ejecutó, quién lo aprobó, con qué parámetros y qué resultado tuvo.
-- **Políticas:** No hay reglas de negocio que impidan ejecutar ciertas operaciones según rol, dominio o entorno.
-- **Aislamiento:** Los agentes locales ejecutan en el mismo contexto de red y recursos que el usuario, sin sandboxing.
-- **Memoria:** Cada sesión de agente empieza desde cero. No hay memoria organizacional que acumule decisiones, convenciones y lecciones aprendidas.
-
-### 4. Multiplicidad de canales sin orquestación
-
-Las empresas tienen equipos que operan desde Slack, Teams, terminal, web, y aplicaciones desktop. Sin una arquitectura unificada, cada canal desarrolla su propia solución, duplicando esfuerzos e imposibilitando una experiencia consistente.
+Instead of a chatbot that only answers questions, CaS is a system where users express **high-level goals** —"migrate the database from staging to production", "generate the monthly financial report", "scale the payment service"— and the platform orchestrates real tools on corporate infrastructure: containers shells, CI/CD pipelines, SQL queries, Kubernetes deploys, and more.
 
 ---
 
-## La Solución: CaS
+## The Problem
 
-CaS resuelve estas brechas mediante una arquitectura de **cuatro planos** que transforma "chatbots que responden" en **"agentes que actúan"** :
+Organizations face four fundamental gaps when adopting AI agents in technical operations:
 
-| Problema | Solución CaS |
+### 1. Chatbots respond but don't act
+
+Current conversational assistants (ChatGPT, Claude Web, Copilot Chat) deliver text, code, and explanations, but don't execute anything. The user must copy, paste, and execute manually. This drastically limits real value: the agent sees but doesn't touch.
+
+### 2. AI agents without corporate control
+
+Local agent tools (Codex CLI, Claude Code) operate with the permissions of the user running them. In an enterprise, this means an unsupervised agent could accidentally —or intentionally— delete resources, expose secrets, or modify critical configurations. There is no central point of control, auditing, or policy enforcement.
+
+### 3. Lack of auditing, policies, and isolation
+
+- **Auditing:** There is no immutable record of what was executed, who approved it, with what parameters, and what result it had.
+- **Policies:** There are no business rules that prevent executing certain operations based on role, domain, or environment.
+- **Isolation:** Local agents run in the same network and resource context as the user, without sandboxing.
+- **Memory:** Each agent session starts from scratch. There is no organizational memory that accumulates decisions, conventions, and lessons learned.
+
+### 4. Multiplicity of channels without orchestration
+
+Companies have teams operating from Slack, Teams, terminal, web, and desktop applications. Without a unified architecture, each channel develops its own solution, duplicating efforts and making a consistent experience impossible.
+
+---
+
+## The Solution: CaS
+
+CaS solves these gaps through a **four-plane architecture** that transforms "chatbots that respond" into **"agents that act"** :
+
+| Problem | CaS Solution |
 |---|---|
-| Chatbots no ejecutan | Execution Plane con runners aislados (shell, CI/CD, datos) |
-| Sin control corporativo | Policy Engine (OPA/Rego) con 3 modos de autonomía |
-| Sin auditoría | Audit trail inmutable con hash chain |
-| Sin aislamiento | Contenedores efímeros con perfiles de red y recursos |
-| Sin memoria | Memory Layer con búsqueda semántica (pgvector) |
-| Canales fragmentados | Interface Layer unificada con API Gateway |
+| Chatbots don't execute | Execution Plane with isolated runners (shell, CI/CD, data) |
+| No corporate control | Policy Engine (OPA/Rego) with 3 autonomy modes |
+| No auditing | Immutable audit trail with hash chain |
+| No isolation | Ephemeral containers with network and resource profiles |
+| No memory | Memory Layer with semantic search (pgvector) |
+| Fragmented channels | Unified Interface Layer with API Gateway |
 
-CaS se inspira en las mejores prácticas de sistemas existentes:
+CaS is inspired by best practices from existing systems:
 
-- **Claude Code** — Referente para interfaz TUI (React + Ink) y sistema de memoria persistente (MEMORY.md index + detail files)
-- **Codex CLI** — Referente para modos de aprobación y sandboxing de ejecución
-- **Opencode** — Referente para arquitectura daemon + thin clients con WebSocket
-- **OpenClaw** — Referente para multi-canal vía gateway WebSocket
-- **Semantic Kernel** — Referente para planner y tool registry con composición dinámica
-- **AutoGPT / BabyAGI** — Referente para goal decomposition y DAG de planes
+- **Claude Code** — Reference for TUI (React + Ink) and persistent memory system (MEMORY.md index + detail files)
+- **Codex CLI** — Reference for approval modes and execution sandboxing
+- **Opencode** — Reference for daemon + thin clients architecture with WebSocket
+- **OpenClaw** — Reference for multi-channel via WebSocket gateway
+- **Semantic Kernel** — Reference for planner and tool registry with dynamic composition
+- **AutoGPT / BabyAGI** — Reference for goal decomposition and DAG of plans
 
 ---
 
-## Conceptos Clave
+## Key Concepts
 
-| Término | Definición | Ejemplo |
+| Term | Definition | Example |
 |---|---|---|
-| **Goal** | Objetivo de alto nivel expresado por el usuario | "Migra la base de datos de staging a producción" |
-| **Plan** | DAG (grafo acíclico dirigido) de tareas generado por el planner | `[backup_staging, run_migrations, verify_data, switch_dns]` |
-| **Tool** | Capacidad atómica registrada en el Tools Registry | `run_sql_query`, `kubectl_apply`, `deploy_service` |
-| **Job** | Instancia de una tool ejecutándose en un runner | `run_sql_query(backup_staging)` ejecutándose en el data runner |
-| **Runner** | Entorno de ejecución aislado que aloja un job | Shell Runner (Docker), CI/CD Runner (GitHub Actions), Data Runner (pandas) |
-| **MemoryItem** | Unidad de memoria persistente | Decisión arquitectónica, convención de equipo, artefacto generado |
-| **Policy** | Regla de negocio evaluada por el Policy Engine | "Escritura en prod requiere aprobación de dos personas" |
-| **Vertical** | Especialización del sistema para un dominio de negocio | DevOps, Marketing, Finance |
+| **Goal** | High-level objective expressed by the user | "Migrate the database from staging to production" |
+| **Plan** | DAG (directed acyclic graph) of tasks generated by the planner | `[backup_staging, run_migrations, verify_data, switch_dns]` |
+| **Tool** | Atomic capability registered in the Tools Registry | `run_sql_query`, `kubectl_apply`, `deploy_service` |
+| **Job** | Instance of a tool executing in a runner | `run_sql_query(backup_staging)` running in the data runner |
+| **Runner** | Isolated execution environment that hosts a job | Shell Runner (Docker), CI/CD Runner (GitHub Actions), Data Runner (pandas) |
+| **MemoryItem** | Persistent memory unit | Architectural decision, team convention, generated artifact |
+| **Policy** | Business rule evaluated by the Policy Engine | "Write to prod requires two-person approval" |
+| **Vertical** | System specialization for a business domain | DevOps, Marketing, Finance |
 
 ---
 
-## Arquitectura en 4 Planos
+## 4-Plane Architecture
 
-CaS organiza sus componentes en cuatro planos con responsabilidades claramente separadas:
+CaS organizes its components into four planes with clearly separated responsibilities:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -123,7 +123,7 @@ CaS organiza sus componentes en cuatro planos con responsabilidades claramente s
 │            ┌────────────┴────────────┐                        │
 │            │    Tools Registry       │                        │
 │            │  - tool.yaml descriptors│                        │
-│            │  - Versionado semántico │                        │
+│            │  - Semantic versioning  │                        │
 │            └─────────────────────────┘                        │
 └────────────────────────────────────┬──────────────────────────┘
                                      │
@@ -147,103 +147,103 @@ CaS organiza sus componentes en cuatro planos con responsabilidades claramente s
 │            │        PostgreSQL + pgvector      │               │
 │            ┌──────────────┐  ┌──────────────┐  │               │
 │            │  Org Store   │  │Project Store  │  │               │
-│            │  (memoria    │  │(decisiones,   │  │               │
-│            │   cross-     │  │ convenciones, │  │               │
-│            │   proyecto)  │  │ artefactos)   │  │               │
+│            │  (cross-     │  │(decisions,    │  │               │
+│            │   project    │  │ conventions,  │  │               │
+│            │   memory)    │  │ artifacts)    │  │               │
 │            └──────────────┘  └──────────────┘  │               │
 │            ┌──────────────────────────────┐    │               │
 │            │  Vector Store (embeddings)   │    │               │
-│            │  Búsqueda semántica (cosine) │    │               │
+│            │  Semantic search (cosine)    │    │               │
 │            └──────────────────────────────┘    │               │
 └────────────────────────────────────────────────────────────────┘
 ```
 
 ### Interface Layer
 
-Capa de presentación que adapta CaS a múltiples canales de interacción. Incluye:
+Presentation layer that adapts CaS to multiple interaction channels. Includes:
 
-- **CLI TUI** — Terminal interactiva construida con React/Ink, comunicación bidireccional vía WebSocket. Experiencia similar a Claude Code pero con conexión remota al daemon.
-- **Web UI** — Interfaz web con HTTP + Server-Sent Events para progreso en tiempo real.
-- **Slack/Teams/WhatsApp Adapters** — Bots que traducen mensajes de chat a Goals de CaS.
-- **Desktop App** — Aplicación nativa que se conecta vía Unix Domain Socket con autenticación HMAC.
-- **API Gateway** — Punto único de entrada con autenticación OIDC/JWT y rate limiting.
+- **CLI TUI** — Interactive terminal built with React/Ink, bidirectional communication via WebSocket. Experience similar to Claude Code but with remote connection to the daemon.
+- **Web UI** — Web interface with HTTP + Server-Sent Events for real-time progress.
+- **Slack/Teams/WhatsApp Adapters** — Bots that translate chat messages into CaS Goals.
+- **Desktop App** — Native application that connects via Unix Domain Socket with HMAC authentication.
+- **API Gateway** — Single entry point with OIDC/JWT authentication and rate limiting.
 
 ### Control Plane
 
-El cerebro del sistema. Orquesta toda la lógica de negocio sin ejecutar código directamente:
+The brain of the system. Orchestrates all business logic without executing code directly:
 
-- **Orchestrator** — Gestiona el ciclo de vida completo de un Goal: recibe la solicitud, coordina la planificación, publica jobs en la cola, recolecta resultados y persiste memoria.
-- **Planner** — Construye prompts contextualizados (con memoria organizacional + catálogo de tools), consulta uno o más LLMs y parsea la respuesta estructurada como un DAG de tareas.
-- **Policy Engine** — Evalúa cada operación contra reglas OPA/Rego usando inputs de usuario, rol, dominio, tool y entorno. Decide si la operación es permitida, denegada o requiere aprobación humana.
-- **Tools Registry** — Catálogo central de todas las capacidades del sistema. Cada tool tiene un descriptor `tool.yaml` con parámetros, runner destino, recursos, y perfil de seguridad.
+- **Orchestrator** — Manages the full lifecycle of a Goal: receives the request, coordinates planning, publishes jobs to the queue, collects results, and persists memory.
+- **Planner** — Builds contextualized prompts (with organizational memory + tools catalog), queries one or more LLMs, and parses the structured response as a DAG of tasks.
+- **Policy Engine** — Evaluates each operation against OPA/Rego rules using user, role, domain, tool, and environment inputs. Decides whether the operation is allowed, denied, or requires human approval.
+- **Tools Registry** — Central catalog of all system capabilities. Each tool has a `tool.yaml` descriptor with parameters, target runner, resources, and security profile.
 
 ### Execution Plane
 
-Capa de ejecución aislada. Workers que consumen jobs de la cola de mensajes:
+Isolated execution layer. Workers that consume jobs from the message queue:
 
-- **Shell Runner** — Contenedores Docker efímeros con sandboxing (seccomp, AppArmor), perfiles de red (none, outbound-only, full) y límites de recursos. Ideal para scripts, deploys y operaciones ad-hoc.
-- **CI/CD Runner** — Bridge a pipelines existentes (GitHub Actions, GitLab CI, Jenkins). CaS actúa como frontend de alto nivel para la infraestructura CI/CD ya existente.
-- **Data Runner** — Imagen especializada con Python, pandas, SQLAlchemy, Jupyter. Para jobs ETL, reporting y análisis de datos.
+- **Shell Runner** — Ephemeral Docker containers with sandboxing (seccomp, AppArmor), network profiles (none, outbound-only, full) and resource limits. Ideal for scripts, deploys, and ad-hoc operations.
+- **CI/CD Runner** — Bridge to existing pipelines (GitHub Actions, GitLab CI, Jenkins). CaS acts as a high-level frontend for existing CI/CD infrastructure.
+- **Data Runner** — Specialized image with Python, pandas, SQLAlchemy, Jupyter. For ETL jobs, reporting, and data analysis.
 
 ### Memory Layer
 
-Capa de memoria persistente con búsqueda semántica:
+Persistent memory layer with semantic search:
 
-- **Org Store** — Memoria organizacional cross-proyecto. Almacena resúmenes de Goals completados con embeddings para recuperación semántica.
-- **Project Store** — Decisiones arquitectónicas, convenciones de equipo y artefactos por proyecto. Alimenta un CHANGELOG.md automático.
-- **Vector Store** — Extension pgvector sobre PostgreSQL. Embeddings generados via OpenAI o Ollama.
+- **Org Store** — Cross-project organizational memory. Stores summaries of completed Goals with embeddings for semantic retrieval.
+- **Project Store** — Architectural decisions, team conventions, and project-specific artifacts. Feeds an automatic CHANGELOG.md.
+- **Vector Store** — pgvector extension over PostgreSQL. Embeddings generated via OpenAI or Ollama.
 
 ---
 
-## Usuarios Target
+## Target Users
 
-| Perfil | Rol en CaS | ¿Qué busca? |
+| Profile | Role in CaS | What they look for |
 |---|---|---|
-| Arquitecto de Software | Diseña verticales y políticas | Un framework extensible para orquestar agentes corporativos |
-| Desarrollador Backend | Registra tools y construye runners | Una API clara para exponer capacidades existentes como tools |
-| DevOps / SRE | Opera el Execution Plane | Aislamiento, límites de recursos, integración con CI/CD existente |
-| Equipo de Seguridad | Define políticas OPA y auditoría | Control granular, audit trail inmutable, cumplimiento normativo |
-| Business Stakeholder | Define Goals y consume reportes | Resultados tangibles sin involucrarse en la ejecución técnica |
+| Software Architect | Designs verticals and policies | An extensible framework for orchestrating corporate agents |
+| Backend Developer | Registers tools and builds runners | A clear API to expose existing capabilities as tools |
+| DevOps / SRE | Operates the Execution Plane | Isolation, resource limits, integration with existing CI/CD |
+| Security Team | Defines OPA policies and auditing | Granular control, immutable audit trail, regulatory compliance |
+| Business Stakeholder | Defines Goals and consumes reports | Tangible results without getting involved in technical execution |
 
 ---
 
-## Cómo Leer Esta Documentación
+## How to Read This Documentation
 
-Esta especificación arquitectónica está organizada como una narrativa progresiva. Se recomienda el siguiente orden de lectura:
+This architectural specification is organized as a progressive narrative. The following reading order is recommended:
 
-1. **Visión General** (este documento) — Contexto, conceptos y vista de pájaro de la arquitectura
-2. **[Arquitectura Lógica](02-architecture-logical.md)** — Desglose detallado de cada plano, sus componentes y flujos de datos
-3. **[Control Plane](03-control-plane.md)** — Profundidad en el cerebro del sistema: API Gateway, Orchestrator, Planner, Policy Engine, Tools Registry
-4. **[Execution Plane](04-execution-plane.md)** — Runners, contenedores, message queue, gestión de credenciales
-5. **[Memoria y Contexto](05-memory-and-context.md)** — Persistencia, búsqueda semántica, patrones de escritura/lectura
-6. **[Seguridad y Compliance](06-security-and-compliance.md)** — Modos de autonomía, políticas OPA, auditoría, aislamiento
-7. **[Verticales de Dominio](07-domain-verticals.md)** — Especialización para DevOps, Marketing, Finance
+1. **Overview** (this document) — Context, concepts, and bird's-eye view of the architecture
+2. **[Logical Architecture](02-architecture-logical.md)** — Detailed breakdown of each plane, its components, and data flows
+3. **[Control Plane](03-control-plane.md)** — Depth on the system's brain: API Gateway, Orchestrator, Planner, Policy Engine, Tools Registry
+4. **[Execution Plane](04-execution-plane.md)** — Runners, containers, message queue, credential management
+5. **[Memory and Context](05-memory-and-context.md)** — Persistence, semantic search, read/write patterns
+6. **[Security and Compliance](06-security-and-compliance.md)** — Autonomy modes, OPA policies, auditing, isolation
+7. **[Domain Verticals](07-domain-verticals.md)** — Specialization for DevOps, Marketing, Finance
 
-Cada documento es auto-contenido pero referencia a los demás con enlaces relativos. Los lectores pueden profundizar según su interés.
+Each document is self-contained but references others with relative links. Readers can dive deeper according to their interest.
 
 ---
 
-## Relación con el Ecosistema
+## Relationship with the Ecosystem
 
-CaS no pretende reemplazar herramientas existentes sino **orquestarlas bajo una arquitectura corporativa unificada**:
+CaS does not aim to replace existing tools but to **orchestrate them under a unified corporate architecture**:
 
-| Herramienta | Relación con CaS |
+| Tool | Relationship with CaS |
 |---|---|
-| **Claude Code** | Inspiración para la TUI (React+Ink) y el sistema de memoria (MEMORY.md detail files). CaS extiende el concepto a multi-usuario y multi-proyecto. |
-| **Codex CLI** | Inspiración para los modos de aprobación y el sandboxing de ejecución. CaS añade un policy engine centralizado con OPA. |
-| **Opencode** | Inspiración para la arquitectura daemon + thin clients con comunicación WebSocket. |
-| **OpenClaw** | Inspiración para el gateway WebSocket multi-canal. |
-| **Semantic Kernel** | Inspiración para el planner, el tool registry y la composición dinámica de capacidades. |
-| **AutoGPT / BabyAGI** | Inspiración para la descomposición de goals en DAGs de tareas. |
-| **HashiCorp Vault** | Backend de secrets management con tokens dinámicos y rotación automática. |
-| **OPA (Open Policy Agent)** | Motor de políticas del Policy Engine. |
+| **Claude Code** | Inspiration for the TUI (React+Ink) and the memory system (MEMORY.md detail files). CaS extends the concept to multi-user and multi-project. |
+| **Codex CLI** | Inspiration for approval modes and execution sandboxing. CaS adds a centralized policy engine with OPA. |
+| **Opencode** | Inspiration for the daemon + thin clients architecture with WebSocket communication. |
+| **OpenClaw** | Inspiration for the multi-channel WebSocket gateway. |
+| **Semantic Kernel** | Inspiration for the planner, tool registry, and dynamic capability composition. |
+| **AutoGPT / BabyAGI** | Inspiration for goal decomposition into DAGs of tasks. |
+| **HashiCorp Vault** | Secrets management backend with dynamic tokens and automatic rotation. |
+| **OPA (Open Policy Agent)** | Policy engine for the Policy Engine. |
 
 ---
 
-## Siguiente
+## Next
 
-Continúa con la **[Arquitectura Lógica](02-architecture-logical.md)** , donde se desglosa cada plano en detalle con sus componentes, interfaces y flujos de datos completos.
+Continue with the **[Logical Architecture](02-architecture-logical.md)** , where each plane is broken down in detail with its components, interfaces, and complete data flows.
 
 ---
 
-*Última actualización: 2026-05-31*
+*Last updated: 2026-05-31*

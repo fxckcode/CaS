@@ -1,50 +1,50 @@
 # CaS — CLI as a Service Reference Architecture
 
-[🇪🇸 Español](./README.md) | [🇬🇧 English](./README.en.md)
+[🇪🇸 Español](./README.es.md) | [🇬🇧 English](./README.md)
 
-> **Arquitectura de referencia ejecutable** para un sistema corporativo de agentes autónomos con control de políticas, aislamiento de ejecución y memoria persistente.
+> **Executable reference architecture** for a corporate autonomous agent system with policy control, isolated execution, and persistent memory.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 ---
 
-## Visión
+## Vision
 
-Este repositorio documenta una **arquitectura de referencia** para construir un **CLI as a Service** corporativo: un sistema donde usuarios expresan objetivos de alto nivel y el sistema orquesta herramientas reales en infraestructura corporativa.
+This repository documents a **reference architecture** for building a corporate **CLI as a Service**: a system where users express high-level goals and the system orchestrates real tools on corporate infrastructure.
 
-**De chatbots que responden a agentes que actúan**: inspirado en [Codex CLI](https://developers.openai.com/codex/cli/) y agentes de desarrollo modernos, CaS permite a los agentes leer, editar y ejecutar código local con distintos niveles de autonomía, mientras mantiene seguridad, auditoría y control de políticas empresariales.
+**From chatbots that respond to agents that act**: inspired by [Codex CLI](https://developers.openai.com/codex/cli/) and modern development agents, CaS allows agents to read, edit, and execute local code with different levels of autonomy, while maintaining security, audit, and enterprise policy control.
 
 ---
 
-## Estado del Proyecto
+## Project Status
 
 **Reference architecture — NOT production ready.**
 
-Este proyecto actualmente es una especificación arquitectónica y guía de diseño. El código de implementación está en roadmap.
+This project is currently an architectural specification and design guide. Implementation code is on the roadmap.
 
 ---
 
-## Componentes de la Arquitectura
+## Architecture Components
 
-La arquitectura no es solo "ensayo", sino una **arquitectura de referencia ejecutable** de un CLI as a Service corporativo:
+The architecture is not just a "proof of concept," but an **executable reference architecture** for a corporate CLI as a Service:
 
 ### Control Plane
-Orquestador de agentes, planner, policy engine, registry de tools.
+Agent orchestrator, planner, policy engine, tools registry.
 
 ### Execution Plane
-Runners aislados (containers/jobs) con perfiles de red y credenciales mínimas.
+Isolated runners (containers/jobs) with network profiles and minimal credentials.
 
-### Capa de Memoria
-Estado de proyectos/organización y trazas de decisiones (CHANGELOG/Org Memory, inspirado en [long‑running agents](https://arxiv.org/pdf/2309.06551.pdf) y [Claude Memory](https://skywork.ai/blog/claude-memory-a-deep-dive-into-anthropics-persistent-context-solution/)).
+### Memory Layer
+Project/organization state and decision traces (CHANGELOG/Org Memory, inspired by [long‑running agents](https://arxiv.org/pdf/2309.06551.pdf) and [Claude Memory](https://skywork.ai/blog/claude-memory-a-deep-dive-into-anthropics-persistent-context-solution/)).
 
-### Capa de Interfaces
-Chat HTTP/WebSocket + adaptadores Slack/Teams/WhatsApp (mocks iniciales incluidos).
+### Interface Layer
+HTTP/WebSocket chat + Slack/Teams/WhatsApp adapters (initial mocks included).
 
-El diseño de esta capa está fundamentado en el análisis comparativo de CLIs de agentes IA modernos (Claude Code, Opencode, Codex CLI, OpenClaw). Ver [`docs/research-cli-architecture.md`](./docs/research-cli-architecture.md) para el estudio completo.
+The design of this layer is grounded in a comparative analysis of modern AI agent CLIs (Claude Code, Opencode, Codex CLI, OpenClaw). See [`docs/research-cli-architecture.md`](./docs/research-cli-architecture.md) for the full study.
 
 ---
 
-## Estructura del Repositorio
+## Repository Structure
 
 ```text
 cas-reference-arch/
@@ -95,188 +95,188 @@ cas-reference-arch/
 
 ---
 
-## Arquitectura de Alto Nivel
+## High-Level Architecture
 
-El README técnico funciona como paper de arquitectura + guía de uso rápido:
+The technical README serves as an architecture paper + quick start guide:
 
-### 1. Contexto y Visión
+### 1. Context and Vision
 
-- **De "chatbots que responden" a "agentes que actúan"**: Referencias a [Codex CLI](https://developers.openai.com/codex/quickstart/) y agentes de desarrollo con capacidades de lectura/edición/ejecución de código local con distintos niveles de autonomía.
-- **CLI as a Service corporativo**: El usuario expresa objetivos, el sistema orquesta herramientas reales en infra corporativa.
+- **From "chatbots that respond" to "agents that act"**: References to [Codex CLI](https://developers.openai.com/codex/quickstart/) and development agents with read/edit/execute capabilities for local code with different levels of autonomy.
+- **Corporate CLI as a Service**: Users express goals, the system orchestrates real tools on corporate infrastructure.
 
-### 2. Diagrama Lógico
+### 2. Logical Diagram
 
-Diagrama Mermaid (`diagrams/logical-architecture.mmd`) con:
+Mermaid diagram (`diagrams/logical-architecture.mmd`) with:
 - Interfaces (chat/API gateway)
 - Orchestrator + planner + policy engine + tools registry
 - Execution plane (runners)
 - Memory stores
 
-### 3. Casos de Uso Ejemplares
+### 3. Example Use Cases
 
-- **"Migra este monolito a microservicios"**
-- **"Lanza esta campaña de marketing"**
-- **"Automatiza este reporte financiero"**
+- **"Migrate this monolith to microservices"**
+- **"Launch this marketing campaign"**
+- **"Automate this financial report"**
 
-Cada uno atado a un flujo en `examples/`.
+Each tied to a workflow in `examples/`.
 
-### 4. Modelo de Seguridad (Feature Central)
+### 4. Security Model (Core Feature)
 
-- **Modos de autonomía** inspirados en [Codex CLI features](https://developers.openai.com/codex/cli/features/) (consultivo, semi‑autónomo, full‑auto con sandbox/approval)
-- Aislamiento de runners, perfiles de red, vault de secretos y policy engine declarativo
+- **Autonomy modes** inspired by [Codex CLI features](https://developers.openai.com/codex/cli/features/) (consultative, semi‑autonomous, full‑auto with sandbox/approval)
+- Runner isolation, network profiles, secrets vault, and declarative policy engine
 
-### 5. Estado del Proyecto
+### 5. Project Status
 
 - **Reference architecture, not production ready**
-- Roadmap de features: nuevos runners, verticales, UI, etc.
+- Feature roadmap: new runners, verticals, UI, etc.
 
 ---
 
-## Diseño del Control Plane
+## Control Plane Design
 
-**Stack sugerido**: TypeScript + NestJS o Go para control plane, Python/Go para runners.
+**Suggested stack**: TypeScript + NestJS or Go for control plane, Python/Go for runners.
 
-### Componentes Clave
+### Key Components
 
 #### `api-gateway/`
-Servicio HTTP/WS que recibe:
+HTTP/WS service that receives:
 - `/goals` (POST): `{ goal: string, projectId, channelMetadata }`
-- `/events` de runners (webhooks o cola)
-- Autenticación (OIDC / JWT de IdP corporativo)
+- `/events` from runners (webhooks or queue)
+- Authentication (OIDC / JWT from corporate IdP)
 
 #### `orchestrator/`
-Servicio que:
-- Crea entidad `Goal` y llama a `planner`
-- Mantiene un `Plan` (DAG de tareas)
-- Publica jobs a una cola (`jobs` topic) para los runners
+Service that:
+- Creates `Goal` entity and calls `planner`
+- Maintains a `Plan` (task DAG)
+- Publishes jobs to a queue (`jobs` topic) for runners
 
 #### `planner/`
-Servicio que encapsula llamadas a LLM:
-- **Prompt**: contexto de organización + memoria de proyecto + catálogo de tools
-- **Output normalizado**: JSON con steps, dependencia y mapping a tools
+Service that encapsulates LLM calls:
+- **Prompt**: organization context + project memory + tools catalog
+- **Normalized output**: JSON with steps, dependencies, and mapping to tools
 
 #### `policy-engine/`
-Wrapper sobre OPA u otro motor de políticas:
-- **Input**: usuario, rol, dominio, tool, entorno, riesgo declarado
+Wrapper over OPA or other policy engine:
+- **Input**: user, role, domain, tool, environment, declared risk
 - **Output**: `ALLOW`, `DENY`, `REQUIRE_APPROVAL`
 
 #### `tools-registry/`
-Servicio que lee descriptors YAML/JSON (`tool.yaml`) y expone:
+Service that reads YAML/JSON descriptors (`tool.yaml`) and exposes:
 - `GET /tools?domain=devops`
 - `GET /tools/{id}/{version}`
-- Aplica validaciones de seguridad y versionado
+- Applies security and versioning validations
 
 ---
 
-## Execution Plane y Runners
+## Execution Plane and Runners
 
-`src/execution-plane/runners/` contiene implementaciones de referencia:
+`src/execution-plane/runners/` contains reference implementations:
 
 ### `shell-runner/`
-- Consume jobs desde la cola
-- Resuelve el `tool.yaml` correspondiente
-- Lanza un contenedor efímero con:
-  - Imagen definida en la tool
-  - Comando `entrypoint` con los placeholders rellenados
-- Envía logs/estado de vuelta al orchestrator
+- Consumes jobs from the queue
+- Resolves the corresponding `tool.yaml`
+- Launches an ephemeral container with:
+  - Image defined in the tool
+  - `entrypoint` command with placeholders filled
+- Sends logs/status back to the orchestrator
 
 ### `cicd-runner/`
-- Envía jobs a un pipeline ya existente (GitHub Actions, GitLab, Jenkins)
-- El CaS actúa como **frontend de alto nivel** para pipelines existentes
+- Sends jobs to an existing pipeline (GitHub Actions, GitLab, Jenkins)
+- CaS acts as a **high-level frontend** for existing pipelines
 
 ### `data-runner/`
-- Entorno con librerías de datos (pandas, SQLAlchemy, etc.) para ejecutar jobs de ETL/reporting
+- Environment with data libraries (pandas, SQLAlchemy, etc.) to execute ETL/reporting jobs
 
-**Buenas prácticas de aislamiento**: runners efímeros, network profiles, limits de CPU/memoria/tiempo y credenciales scoped.
+**Isolation best practices**: ephemeral runners, network profiles, CPU/memory/time limits, and scoped credentials.
 
 ---
 
-## Memoria y Contexto Persistente
+## Persistent Memory and Context
 
-En `src/memory/` se propone un diseño inspirado en harnesses de [long‑running agents](https://arxiv.org/pdf/2309.06551.pdf) y sistemas tipo Claude Memory: memoria local/proyecto con resúmenes y metadatos.
+In `src/memory/`, a design is proposed inspired by [long‑running agents](https://arxiv.org/pdf/2309.06551.pdf) harnesses and Claude Memory-type systems: local/project memory with summaries and metadata.
 
 ### `org-store/`
-Tabla/colección `OrgMemoryItem`:
+Table/collection `OrgMemoryItem`:
 - `orgId`, `domain`, `summary`, `tags`, `createdAt`, `source` (goal/plan/job)
 
 ### `project-store/`
-Tabla/colección `ProjectMemoryItem`:
-- `projectId`, `summary`, `type` (decision, convention, artifact), `link` (a repo, pipeline, dashboard)
+Table/collection `ProjectMemoryItem`:
+- `projectId`, `summary`, `type` (decision, convention, artifact), `link` (to repo, pipeline, dashboard)
 
-### Patrones a Implementar
+### Patterns to Implement
 
-- **Al final de un Goal grande**, el orchestrator escribe un `MemoryItem` con:
-  - Qué se hizo
-  - Por qué se tomó una decisión
-  - Dónde quedaron los artefactos
+- **At the end of a large Goal**, the orchestrator writes a `MemoryItem` with:
+  - What was done
+  - Why a decision was made
+  - Where artifacts were left
 
-- **Al iniciar un nuevo Goal**, el planner recupera `k` items relevantes vía filtros y/o búsqueda semántica y los inyecta al prompt
+- **When starting a new Goal**, the planner retrieves `k` relevant items via filters and/or semantic search and injects them into the prompt
 
-Esto conecta con el concepto de `CHANGELOG.md`/lab-notes de proyectos long‑running.
+This connects with the concept of `CHANGELOG.md`/lab-notes for long‑running projects.
 
 ---
 
-## Modelo de Plugins y Verticalización
+## Plugin Model and Verticalization
 
-En `docs/07-domain-verticals.md` y `examples/` se muestra cómo se ve un CaS vertical:
+In `docs/07-domain-verticals.md` and `examples/`, a vertical CaS is shown:
 
-- Definir un mini‑DSL de tareas de negocio (ej. logística, finanzas)
-- Mapear tareas de negocio a secuencias de tools técnicas
-- Medir el éxito en KPIs del dominio (no solo "job succeeded")
+- Define a mini‑DSL of business tasks (e.g., logistics, finance)
+- Map business tasks to technical tool sequences
+- Measure success in domain KPIs (not just "job succeeded")
 
-### Ejemplo: `examples/finance-reporting/`
+### Example: `examples/finance-reporting/`
 
-Descriptor de tarea: `GenerateWeeklySalesReport`
+Task descriptor: `GenerateWeeklySalesReport`
 
 **Tools**:
 - `run_sql_query`
 - `render_report`
 - `send_email_report`
 
-Vocabulario de entidades: `Goal`, `Plan`, `Tool`, `Job`, `MemoryItem`.
+Entity vocabulary: `Goal`, `Plan`, `Tool`, `Job`, `MemoryItem`.
 
 ---
 
-## Diseño de la Capa de Interfaces
+## Interface Layer Design
 
-> Fundamentado en el análisis comparativo de CLIs de agentes IA modernos. Ver [`docs/research-cli-architecture.md`](./docs/research-cli-architecture.md) para el estudio completo de Claude Code, Opencode, Codex CLI y OpenClaw.
+> Grounded in a comparative analysis of modern AI agent CLIs. See [`docs/research-cli-architecture.md`](./docs/research-cli-architecture.md) for the full study of Claude Code, Opencode, Codex CLI, and OpenClaw.
 
-### Dos patrones arquitectónicos identificados
+### Two identified architectural patterns
 
-#### Patrón A: Single-Process Renderer
+#### Pattern A: Single-Process Renderer
 *Claude Code (TypeScript/Bun + React/Ink), Codex CLI (Node.js + React/Ink)*
 
 ```
 ┌─────────────────────────┐
-│  Proceso único          │
+│  Single process         │
 │  ├── Agent Logic        │
 │  └── UI Renderer (Ink)  │
 └─────────────────────────┘
 ```
 
-**Pros:** Simple, sin latencia IPC, fácil de debuggear.
-**Contras:** Sin persistencia de sesión; nuevo frontend = reimplementar renderer.
+**Pros:** Simple, no IPC latency, easy to debug.
+**Cons:** No session persistence; new frontend = re-implement renderer.
 
-#### Patrón B: Daemon/Gateway + Thin Clients
+#### Pattern B: Daemon/Gateway + Thin Clients
 *Opencode (Go + HTTP/SSE), OpenClaw (Node.js + WebSocket)*
 
 ```
 ┌──────────────────────┐
-│  Daemon/Gateway      │  ← Estado, sesiones, agente, tools
-│  (proceso persistente)│
+│  Daemon/Gateway      │  ← State, sessions, agent, tools
+│  (persistent process) │
 └──────────┬───────────┘
-           │ protocolo estándar
+           │ standard protocol
     ┌──────┼──────┐
     ▼      ▼      ▼
-  TUI    Web   Desktop  ← Solo rendering y UX
+  TUI    Web   Desktop  ← Rendering and UX only
 ```
 
-**Pros:** Sesiones persistentes, multi-cliente nativo, extensible. Añadir canal = implementar adapter.
-**Contras:** Complejidad operacional (lifecycle del daemon, puertos, auth).
+**Pros:** Persistent sessions, native multi-client, extensible. New channel = implement adapter.
+**Cons:** Operational complexity (daemon lifecycle, ports, auth).
 
-**CaS adopta el Patrón B**, alineado con sus requerimientos de múltiples puntos de entrada (terminal, Slack, Teams, WhatsApp, web).
+**CaS adopts Pattern B**, aligned with its requirements for multiple entry points (terminal, Slack, Teams, WhatsApp, web).
 
-### Arquitectura de la Capa de Interfaces
+### Interface Layer Architecture
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -296,62 +296,62 @@ Vocabulario de entidades: `Goal`, `Plan`, `Tool`, `Job`, `MemoryItem`.
                     └──────────────────────────┘
 ```
 
-### Decisiones de protocolo por cliente
+### Protocol decisions per client
 
-| Cliente | Protocolo | Referente |
-|---------|-----------|-----------|
+| Client | Protocol | Reference |
+|--------|----------|-----------|
 | CLI (TUI) | WebSocket | OpenClaw |
 | Web UI | HTTP + SSE | Opencode |
 | Desktop App | Unix Domain Socket + token auth | OpenClaw macOS |
-| Slack / Teams / WhatsApp | Adapters HTTP | OpenClaw channels |
+| Slack / Teams / WhatsApp | HTTP Adapters | OpenClaw channels |
 
-La naturaleza **full-duplex y long-lived** de los flujos de agentes IA hace que WebSocket sea el match natural para el CLI: el backend necesita enviar progreso en tiempo real y el cliente necesita enviar interrupciones o nuevas instrucciones en cualquier momento.
+The **bidirectional and long-lived** nature of AI agent flows makes WebSocket the natural match for the CLI: the backend needs to stream progress in real time and the client needs to send interruptions or new instructions at any moment.
 
-### Protocolo mínimo viable para el CLI de CaS
+### Minimal viable protocol for the CaS CLI
 
 ```
 CLI (TUI) ──WS──► API Gateway ──internal──► Orchestrator
                       │
                       ├── /goals    POST   { goal, projectId }
-                      ├── /events   SSE    streaming de progreso
-                      └── /sessions GET    estado de sesión activa
+                      ├── /events   SSE    streaming progress
+                      └── /sessions GET    active session state
 ```
 
-### Stack TUI recomendado
+### Recommended TUI stack
 
-- **TypeScript**: React + [Ink](https://github.com/vadimdemedes/ink) — mismo approach que Claude Code y Codex CLI
-- **Go**: Bubble Tea — mismo approach que Opencode
+- **TypeScript**: React + [Ink](https://github.com/vadimdemedes/ink) — same approach as Claude Code and Codex CLI
+- **Go**: Bubble Tea — same approach as Opencode
 
 ---
 
-## Seguridad y Compliance
+## Security and Compliance
 
-En `docs/06-security-and-compliance.md` se detalla:
+In `docs/06-security-and-compliance.md`, it details:
 
-- Separación clara de planos (control vs. ejecución)
-- Policies declarativas por dominio/rol/tool
-- Modos de autonomía (consultivo, semi‑autónomo, autónomo)
-- Auditoría exhaustiva: qué se ejecutó, con qué parámetros, bajo qué contexto y decisión de política
+- Clear separation of planes (control vs. execution)
+- Declarative policies by domain/role/tool
+- Autonomy modes (consultative, semi‑autonomous, autonomous)
+- Exhaustive audit: what was executed, with what parameters, under what context and policy decision
 
-También conecta con temas de **gobierno de datos** en organizaciones reguladas: catálogos de sensibilidad, acceso segmentado, etc.
+It also connects with **data governance** topics in regulated organizations: sensitivity catalogs, segmented access, etc.
 
 ---
 
 ## Roadmap
 
-- [ ] Implementar control plane base (TypeScript/NestJS o Go)
-- [ ] Implementar shell-runner básico
-- [ ] Agregar policy engine con OPA
-- [ ] Crear ejemplos de verticales (DevOps, Marketing, Finance)
-- [ ] Documentación completa en `docs/`
-- [ ] Diagramas Mermaid de arquitectura
-- [ ] CI/CD y release automation
+- [ ] Implement base control plane (TypeScript/NestJS or Go)
+- [ ] Implement basic shell-runner
+- [ ] Add policy engine with OPA
+- [ ] Create vertical examples (DevOps, Marketing, Finance)
+- [ ] Complete documentation in `docs/`
+- [ ] Mermaid architecture diagrams
+- [ ] CI/CD and release automation
 
 ---
 
-## Referencias
+## References
 
-**Arquitectura de CaS**
+**CaS Architecture**
 - [Codex CLI](https://developers.openai.com/codex/cli/)
 - [Codex Quickstart](https://developers.openai.com/codex/quickstart/)
 - [Long-running agents paper](https://arxiv.org/pdf/2309.06551.pdf)
@@ -359,7 +359,7 @@ También conecta con temas de **gobierno de datos** en organizaciones reguladas:
 - [Governance in regulated orgs](https://arxiv.org/pdf/2204.08941.pdf)
 - [Integrate Codex CLI into workflows](https://blog.openreplay.com/integrate-openais-codex-cli-tool-development-workflow/)
 
-**Investigación de la Capa de Interfaces** — ver estudio completo en [`docs/research-cli-architecture.md`](./docs/research-cli-architecture.md)
+**Interface Layer Research** — full study at [`docs/research-cli-architecture.md`](./docs/research-cli-architecture.md)
 - [Claude Code Architecture Leak — WaveSpeedAI](https://wavespeed.ai/blog/posts/claude-code-architecture-leaked-source-deep-dive/)
 - [AI Coding Agent Architecture Analysis — Haseeb Qureshi](https://gist.github.com/Haseeb-Qureshi/2213cc0487ea71d62572a645d7582518)
 - [Opencode Docs — Server](https://opencode.ai/docs/server/)
@@ -370,12 +370,12 @@ También conecta con temas de **gobierno de datos** en organizaciones reguladas:
 
 ---
 
-## Licencia
+## License
 
-MIT License - ver [LICENSE](./LICENSE) para más detalles.
+MIT License - see [LICENSE](./LICENSE) for details.
 
 ---
 
-## Contacto y Contribuciones
+## Contact and Contributions
 
-Este es un proyecto de referencia arquitectónica. Las contribuciones son bienvenidas vía issues y pull requests.
+This is a reference architecture project. Contributions are welcome via issues and pull requests.

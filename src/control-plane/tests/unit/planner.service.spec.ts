@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PlannerService } from '../../src/planner/planner.service';
 import { ToolsRegistryService } from '../../src/tools-registry/tools-registry.service';
+import { MemoryStoreService } from '../../src/memory/memory-store.service';
+import { MemoryReaderService } from '../../src/memory/memory-reader.service';
 import { Goal } from '../../src/shared/types';
 
 describe('PlannerService', () => {
@@ -8,7 +10,7 @@ describe('PlannerService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [PlannerService, ToolsRegistryService],
+      providers: [PlannerService, ToolsRegistryService, MemoryStoreService, MemoryReaderService],
     }).compile();
 
     service = module.get<PlannerService>(PlannerService);

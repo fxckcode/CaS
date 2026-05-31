@@ -1,11 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { v4 as uuid } from 'uuid';
 import { Goal, Plan, PlanStep, ToolDescriptor } from '../shared/types';
 import { ToolsRegistryService } from '../tools-registry/tools-registry.service';
+import { MemoryReaderService } from '../memory/memory-reader.service';
 
 @Injectable()
 export class PlannerService {
-  constructor(private readonly toolsRegistry: ToolsRegistryService) {}
+  private readonly logger = new Logger(PlannerService.name);
+
+  constructor(
+    private readonly toolsRegistry: ToolsRegistryService,
+    private readonly memoryReader: MemoryReaderService,
+  ) {}
 
   /**
    * Create a Plan from a Goal using template-based matching.
@@ -14,6 +20,12 @@ export class PlannerService {
   async createPlan(goal: Goal, _tools?: ToolDescriptor[]): Promise<Plan> {
     const description = goal.description.toLowerCase();
     const tools = _tools ?? this.toolsRegistry.getTools();
+
+    // Recuperar contexto de memoria antes de planificar
+    const memoryContext = await this.memoryReader.getContextForPlanning(goal);
+    if (memoryContext) {
+      this.logger.log(`Memory context retrieved for goal ${goal.id}:\n${memoryContext}`);
+    }
 
     if (description.includes('report') || description.includes('reporte')) {
       return this.buildReportPlan(goal, tools);
