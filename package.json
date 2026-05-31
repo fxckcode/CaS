@@ -1,0 +1,21 @@
+{
+  "name": "cas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CLI as a Service - Reference Architecture",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "format": "prettier --write src/**/*.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "prettier": "^3.5.0",
+    "@types/node": "^22.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}
