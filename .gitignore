@@ -19,8 +19,9 @@ vendor/
 __pycache__/
 *.pyc
 
-# Build outputs
+# Build
 dist/
+*.tsbuildinfo
 build/
 out/
 *.exe
