@@ -50,8 +50,6 @@ describe('API Gateway (e2e)', () => {
         .expect(201)
         .expect((res) => {
           expect(res.body.id).toBeDefined();
-          // Status may have already transitioned from PENDING due to
-          // fire-and-forget planning running synchronously in the same tick
           expect(['PENDING', 'PLANNING', 'AWAITING_APPROVAL', 'APPROVED', 'IN_PROGRESS']).toContain(res.body.status);
           expect(res.body.description).toBe('generate monthly report');
           expect(res.body.createdAt).toBeDefined();
@@ -70,8 +68,33 @@ describe('API Gateway (e2e)', () => {
         .expect(201)
         .expect((res) => {
           expect(res.body.id).toBeDefined();
-          // Autonomous mode may advance quickly past PENDING
           expect(['PENDING', 'PLANNING', 'APPROVED', 'IN_PROGRESS', 'COMPLETED']).toContain(res.body.status);
+        });
+    });
+  });
+
+  // ── GET /goals (list) ─────────────────────────────────
+
+  describe('GET /goals', () => {
+    it('should return 200 with a goals array', async () => {
+      // Create a goal first so the list is non-empty
+      await request(app.getHttpServer())
+        .post('/goals')
+        .send({ goal: 'list test goal', projectId: 'list-test' })
+        .expect(201);
+
+      return request(app.getHttpServer())
+        .get('/goals')
+        .expect(200)
+        .expect((res) => {
+          expect(Array.isArray(res.body)).toBe(true);
+          expect(res.body.length).toBeGreaterThanOrEqual(1);
+          const g = res.body[0];
+          expect(g.id).toBeDefined();
+          expect(g.description).toBeDefined();
+          expect(g.status).toBeDefined();
+          expect(g.createdAt).toBeDefined();
+          expect(g.updatedAt).toBeDefined();
         });
     });
   });
@@ -79,19 +102,22 @@ describe('API Gateway (e2e)', () => {
   // ── GET /goals/:id ───────────────────────────────────
 
   describe('GET /goals/:id', () => {
-    it('should return the goal for an existing id', async () => {
-      const createRes = await request(app.getHttpServer())
+    let createdGoalId: string;
+
+    beforeAll(async () => {
+      const res = await request(app.getHttpServer())
         .post('/goals')
         .send({ goal: 'find this goal', projectId: 'proj-99' })
         .expect(201);
+      createdGoalId = res.body.id;
+    });
 
-      const goalId = createRes.body.id;
-
+    it('should return the goal for an existing id', () => {
       return request(app.getHttpServer())
-        .get(`/goals/${goalId}`)
+        .get(`/goals/${createdGoalId}`)
         .expect(200)
         .expect((res) => {
-          expect(res.body.id).toBe(goalId);
+          expect(res.body.id).toBe(createdGoalId);
           expect(res.body.description).toBe('find this goal');
           expect(res.body.status).toBeDefined();
         });
@@ -102,10 +128,43 @@ describe('API Gateway (e2e)', () => {
         .get('/goals/non-existent-id-12345')
         .expect(404);
     });
+  });
 
-    it('should return 404 for an empty id', () => {
+  // ── GET /goals/:id/plan ──────────────────────────────
+
+  describe('GET /goals/:id/plan', () => {
+    let createdGoalId: string;
+
+    beforeAll(async () => {
+      const res = await request(app.getHttpServer())
+        .post('/goals')
+        .send({ goal: 'plan test goal for e2e', projectId: 'plan-test' })
+        .expect(201);
+      createdGoalId = res.body.id;
+    });
+
+    it('should return 200 with a plan containing steps', async () => {
+      // The plan may not be immediately available — retry briefly
+      let plan: any = null;
+      for (let i = 0; i < 5; i++) {
+        const res = await request(app.getHttpServer())
+          .get(`/goals/${createdGoalId}/plan`);
+        if (res.status === 200) {
+          plan = res.body;
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 300));
+      }
+      expect(plan).not.toBeNull();
+      expect(Array.isArray(plan.steps)).toBe(true);
+      expect(plan.steps.length).toBeGreaterThanOrEqual(1);
+      expect(plan.steps[0].toolId).toBeDefined();
+      expect(plan.steps[0].description).toBeDefined();
+    });
+
+    it('should return 404 for a non-existent goal', () => {
       return request(app.getHttpServer())
-        .get('/goals/ ')
+        .get('/goals/non-existent-plan/plan')
         .expect(404);
     });
   });
@@ -122,8 +181,31 @@ describe('API Gateway (e2e)', () => {
           expect(typeof res.body.total).toBe('number');
           expect(res.body.total).toBeGreaterThan(0);
           expect(res.body.tools.length).toBe(res.body.total);
-          // Each tool should have an id
           expect(res.body.tools[0].id).toBeDefined();
+        });
+    });
+  });
+
+  // ── GET /memory ──────────────────────────────────────
+
+  describe('GET /memory', () => {
+    it('should return 200 with items array and total', () => {
+      return request(app.getHttpServer())
+        .get('/memory')
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.items).toBeDefined();
+          expect(Array.isArray(res.body.items)).toBe(true);
+          expect(typeof res.body.total).toBe('number');
+        });
+    });
+
+    it('should support keywords query param', () => {
+      return request(app.getHttpServer())
+        .get('/memory?keywords=deploy')
+        .expect(200)
+        .expect((res) => {
+          expect(Array.isArray(res.body.items)).toBe(true);
         });
     });
   });
