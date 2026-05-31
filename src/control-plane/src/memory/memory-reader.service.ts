@@ -1,12 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Goal } from '../shared/types';
-import { MemoryStoreService } from './memory-store.service';
+import { IMemoryStore, MEMORY_STORE } from './memory.types';
 
 @Injectable()
 export class MemoryReaderService {
   private readonly logger = new Logger(MemoryReaderService.name);
 
-  constructor(private readonly memoryStore: MemoryStoreService) {}
+  constructor(@Inject(MEMORY_STORE) private readonly memoryStore: IMemoryStore) {}
 
   async getContextForPlanning(goal: Goal): Promise<string> {
     // Buscar memorias relevantes al nuevo Goal

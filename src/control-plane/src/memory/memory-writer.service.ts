@@ -1,15 +1,15 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { v4 as uuid } from 'uuid';
 import { Goal, MemoryItem, Plan } from '../shared/types';
-import { MemoryStoreService } from './memory-store.service';
+import { IMemoryStore, MEMORY_STORE } from './memory.types';
 
 @Injectable()
 export class MemoryWriterService {
   private readonly logger = new Logger(MemoryWriterService.name);
 
   constructor(
-    private readonly memoryStore: MemoryStoreService,
+    @Inject(MEMORY_STORE) private readonly memoryStore: IMemoryStore,
     private readonly eventEmitter: EventEmitter2,
   ) {
     // Escuchar 'goal.completed'

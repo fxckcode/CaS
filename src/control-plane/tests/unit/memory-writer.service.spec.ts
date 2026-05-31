@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MemoryWriterService } from '../../src/memory/memory-writer.service';
 import { MemoryStoreService } from '../../src/memory/memory-store.service';
+import { MEMORY_STORE } from '../../src/memory/memory.types';
 import { Goal, Plan, PlanStep, MemoryItem } from '../../src/shared/types';
 
 /**
@@ -30,6 +31,7 @@ describe('MemoryWriterService', () => {
       providers: [
         MemoryWriterService,
         MemoryStoreService,
+        { provide: MEMORY_STORE, useExisting: MemoryStoreService },
         { provide: EventEmitter2, useValue: eventEmitter },
       ],
     }).compile();

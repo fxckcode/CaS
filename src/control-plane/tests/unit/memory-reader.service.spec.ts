@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { MemoryReaderService } from '../../src/memory/memory-reader.service';
 import { MemoryStoreService } from '../../src/memory/memory-store.service';
+import { MEMORY_STORE } from '../../src/memory/memory.types';
 import { Goal, MemoryItem } from '../../src/shared/types';
 
 describe('MemoryReaderService', () => {
@@ -9,7 +10,11 @@ describe('MemoryReaderService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [MemoryReaderService, MemoryStoreService],
+      providers: [
+        MemoryReaderService,
+        MemoryStoreService,
+        { provide: MEMORY_STORE, useExisting: MemoryStoreService },
+      ],
     }).compile();
 
     service = module.get<MemoryReaderService>(MemoryReaderService);

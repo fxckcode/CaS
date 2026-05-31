@@ -25,3 +25,6 @@ export interface IMemoryStore {
   getByProject(projectId: string): Promise<MemoryItem[]>;
   getByOrg(orgId: string, domain?: string): Promise<MemoryItem[]>;
 }
+
+/** Injection token for the memory store provider. */
+export const MEMORY_STORE = 'MEMORY_STORE';
